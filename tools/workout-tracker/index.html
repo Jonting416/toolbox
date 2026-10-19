@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Workout Tracker · Toolbox</title>
+  <link rel="stylesheet" href="../../lib/toolbox.css">
+  <link rel="stylesheet" href="workout-tracker.css">
+</head>
+<body>
+  <div class="wrap">
+    <header class="tool-header">
+      <a class="back-link" href="../../index.html"><span id="back-icon"></span>All tools</a>
+    </header>
+
+    <h1 class="tool-title">Workout Tracker</h1>
+
+    <!-- Which data file is open; open / create / reconnect it. -->
+    <div id="databar"></div>
+
+    <div id="banners"></div>
+    <nav id="tabs" class="wt-tabs" aria-label="Sections"></nav>
+    <main id="app"></main>
+    <p id="foot" class="wt-foot"></p>
+  </div>
+
+  <div id="modal" class="wt-modal" hidden></div>
+
+  <script src="../../lib/toolbox.js"></script>
+  <script src="library/exercises.v1.js"></script>
+  <script src="core.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

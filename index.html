@@ -1,0 +1,287 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Toolbox</title>
+  <meta name="description" content="Small tools that run entirely in your browser. Your data lives in one file you keep.">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23c2410c'/%3E%3Crect x='8' y='8' width='7' height='7' rx='1.5' fill='white'/%3E%3Crect x='17' y='8' width='7' height='7' rx='1.5' fill='white' opacity='.6'/%3E%3Crect x='8' y='17' width='7' height='7' rx='1.5' fill='white' opacity='.6'/%3E%3Crect x='17' y='17' width='7' height='7' rx='1.5' fill='white'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="lib/toolbox.css">
+  <style>
+    .site-header { padding: 40px 0 28px; }
+    @media (min-width: 720px) { .site-header { padding: 64px 0 36px; } }
+
+    .brand { display: flex; align-items: center; gap: 12px; }
+    .brand-mark {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 3px;
+      width: 34px;
+      height: 34px;
+      padding: 7px;
+      border-radius: 9px;
+      background: var(--accent);
+    }
+    .brand-mark i { border-radius: 2px; background: var(--accent-ink); }
+    .brand-mark i:nth-child(2), .brand-mark i:nth-child(3) { opacity: .55; }
+    .brand-name { font-size: 15px; font-weight: 700; letter-spacing: .02em; }
+
+    .headline {
+      margin: 28px 0 10px;
+      max-width: 18ch;
+      font-size: clamp(32px, 6vw, 52px);
+      line-height: 1.05;
+      letter-spacing: -.025em;
+      font-weight: 750;
+    }
+    .lede { margin: 0; max-width: 56ch; font-size: 17px; color: var(--ink-2); }
+
+    .section { padding: 0 0 40px; }
+
+    .section-head {
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      gap: 16px;
+      flex-wrap: wrap;
+      margin: 12px 0 16px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid var(--line);
+    }
+    .section-head h2 { margin: 2px 0 0; font-size: 22px; letter-spacing: -.01em; }
+    .count { font-family: var(--mono); font-size: 13px; color: var(--ink-3); font-weight: 500; margin-left: 6px; }
+
+    .search {
+      position: relative;
+      flex: 0 1 280px;
+      min-width: 0;
+    }
+    @media (max-width: 560px) { .search { flex-basis: 100%; } }
+    .search svg { position: absolute; left: 11px; top: 50%; width: 17px; height: 17px; transform: translateY(-50%); color: var(--ink-3); pointer-events: none; }
+    .search input {
+      width: 100%;
+      height: 38px;
+      padding: 0 38px 0 36px;
+      border: 1px solid var(--line-strong);
+      border-radius: var(--radius-sm);
+      background: var(--surface);
+      color: var(--ink);
+      font: 14px var(--font);
+    }
+    .search input:focus { outline: 2px solid var(--accent); outline-offset: 1px; border-color: transparent; }
+    .search kbd {
+      position: absolute; right: 9px; top: 50%; transform: translateY(-50%);
+      padding: 1px 6px; border: 1px solid var(--line); border-radius: 5px;
+      font: 11px var(--mono); color: var(--ink-3); background: var(--surface-2);
+    }
+    .search input:focus ~ kbd, .search input:not(:placeholder-shown) ~ kbd { display: none; }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+      gap: 14px;
+      list-style: none;
+      margin: 0;
+      padding: 0;
+    }
+
+    .card {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      height: 100%;
+      padding: 18px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--surface);
+      text-decoration: none;
+      transition: border-color .15s, transform .15s, box-shadow .15s;
+    }
+    a.card:hover { border-color: var(--accent); box-shadow: var(--shadow); transform: translateY(-1px); }
+    a.card:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+    .card-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+    .card-icon {
+      display: grid; place-items: center;
+      width: 42px; height: 42px;
+      border-radius: 10px;
+      background: var(--accent-soft);
+      color: var(--accent);
+    }
+    .card h3 { margin: 0; font-size: 17px; letter-spacing: -.005em; }
+    .card p { margin: 0; font-size: 14px; color: var(--ink-2); flex: 1; }
+    .card-foot { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+    .tag, .chip {
+      font: 500 11px/1 var(--mono);
+      padding: 5px 7px;
+      border-radius: 6px;
+      letter-spacing: .02em;
+    }
+    .tag { color: var(--ink-3); background: var(--surface-2); }
+    .chip--data { color: var(--ok); background: color-mix(in srgb, var(--ok) 13%, transparent); }
+    .chip--planned { color: var(--ink-3); border: 1px dashed var(--line-strong); }
+    .card-go { margin-left: auto; color: var(--ink-3); transition: color .15s, transform .15s; }
+    .card-go svg { width: 18px; height: 18px; display: block; }
+    a.card:hover .card-go { color: var(--accent); transform: translateX(2px); }
+
+    .card--planned { background: transparent; border-style: dashed; }
+    .card--planned .card-icon { background: var(--surface-2); color: var(--ink-3); }
+    .card--planned h3 { color: var(--ink-2); }
+
+    .empty { padding: 32px 0; color: var(--ink-3); font-size: 15px; }
+
+    .how {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 24px;
+      margin: 0;
+      padding: 24px 0 0;
+      list-style: none;
+      border-top: 1px solid var(--line);
+      counter-reset: step;
+    }
+    .how li { counter-increment: step; }
+    .how li::before {
+      content: "0" counter(step);
+      display: block;
+      margin-bottom: 6px;
+      font: 600 12px var(--mono);
+      color: var(--accent);
+    }
+    .how strong { display: block; margin-bottom: 4px; font-size: 15px; }
+    .how span { font-size: 14px; color: var(--ink-2); }
+
+    .site-footer {
+      padding: 32px 0 48px;
+      font: 12px var(--mono);
+      color: var(--ink-3);
+    }
+  </style>
+</head>
+<body>
+  <header class="site-header">
+    <div class="wrap">
+      <div class="brand">
+        <span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
+        <span class="brand-name">Toolbox</span>
+      </div>
+      <h1 class="headline">Small tools. Your data, in your file.</h1>
+      <p class="lede">Everything here runs in your browser. There’s no account and no server — what you save goes into one data file you keep wherever you like.</p>
+    </div>
+  </header>
+
+  <main>
+    <section class="section" aria-label="Data file">
+      <div class="wrap">
+        <div id="databar"></div>
+      </div>
+    </section>
+
+    <section class="section" aria-labelledby="tools-heading">
+      <div class="wrap">
+        <div class="section-head">
+          <div>
+            <span class="eyebrow">Available &amp; planned</span>
+            <h2 id="tools-heading">Tools <span class="count" id="tool-count"></span></h2>
+          </div>
+          <label class="search">
+            <span id="search-icon"></span>
+            <input id="search" type="search" placeholder="Find a tool" aria-label="Find a tool" autocomplete="off">
+            <kbd>/</kbd>
+          </label>
+        </div>
+        <ul class="grid" id="tools"></ul>
+        <p class="empty" id="empty" hidden>No tools match that search.</p>
+      </div>
+    </section>
+
+    <section class="section" aria-label="How it works">
+      <div class="wrap">
+        <ol class="how">
+          <li><strong>Create or open a data file</strong><span>One JSON file holds the data for every tool. Keep it in a synced folder to use it on other devices.</span></li>
+          <li><strong>Use any tool</strong><span>Each tool reads and writes its own section of the file. In Chrome and Edge, changes save to the file automatically.</span></li>
+          <li><strong>Come back anytime</strong><span>Your browser remembers the file. Next visit, reconnect with one click and pick up where you left off.</span></li>
+        </ol>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">Runs entirely client-side · No data leaves your device</div>
+  </footer>
+
+  <script src="lib/toolbox.js"></script>
+  <script src="tools/registry.js"></script>
+  <script>
+    (function () {
+      var tools = window.TOOLBOX_TOOLS || [];
+      var listEl = document.getElementById('tools');
+      var emptyEl = document.getElementById('empty');
+      var searchEl = document.getElementById('search');
+      var icons = Toolbox.icons;
+      var esc = Toolbox.escape;
+
+      document.getElementById('search-icon').outerHTML = icons.search;
+      Toolbox.mountDataBar(document.getElementById('databar'), { variant: 'panel' });
+
+      var ready = tools.filter(function (t) { return t.status !== 'planned'; }).length;
+      document.getElementById('tool-count').textContent =
+        tools.length + (ready < tools.length ? ' · ' + ready + ' ready' : '');
+
+      // Ready tools first, then planned; registry order within each group.
+      var ordered = tools.slice().sort(function (a, b) {
+        return (a.status === 'planned') - (b.status === 'planned');
+      });
+
+      function matches(t, q) {
+        if (!q) return true;
+        var hay = [t.name, t.description, (t.tags || []).join(' ')].join(' ').toLowerCase();
+        return q.split(/\s+/).every(function (w) { return hay.indexOf(w) !== -1; });
+      }
+
+      function render() {
+        var q = searchEl.value.trim().toLowerCase();
+        var withData = Toolbox.status().toolIds;
+        var shown = ordered.filter(function (t) { return matches(t, q); });
+
+        listEl.innerHTML = shown.map(function (t) {
+          var planned = t.status === 'planned';
+          var href = t.path.replace(/\/?$/, '/') + 'index.html';
+          var chips = (t.tags || []).map(function (tag) { return '<span class="tag">' + esc(tag) + '</span>'; });
+          if (planned) chips.unshift('<span class="chip chip--planned">Coming soon</span>');
+          else if (withData.indexOf(t.id) !== -1) chips.unshift('<span class="chip chip--data">Has data</span>');
+
+          var inner =
+            '<div class="card-top"><span class="card-icon" aria-hidden="true">' + (icons[t.icon] || icons.wrench) + '</span></div>' +
+            '<h3>' + esc(t.name) + '</h3>' +
+            '<p>' + esc(t.description) + '</p>' +
+            '<div class="card-foot">' + chips.join('') +
+              (planned ? '' : '<span class="card-go" aria-hidden="true">' + icons.arrow + '</span>') +
+            '</div>';
+
+          return '<li>' + (planned
+            ? '<div class="card card--planned" aria-disabled="true">' + inner + '</div>'
+            : '<a class="card" href="' + esc(href) + '">' + inner + '</a>') + '</li>';
+        }).join('');
+
+        emptyEl.hidden = shown.length > 0;
+      }
+
+      searchEl.addEventListener('input', render);
+      document.addEventListener('keydown', function (e) {
+        if (e.key === '/' && document.activeElement.tagName !== 'INPUT' && document.activeElement.tagName !== 'TEXTAREA') {
+          e.preventDefault();
+          searchEl.focus();
+        } else if (e.key === 'Escape' && document.activeElement === searchEl) {
+          searchEl.value = '';
+          render();
+          searchEl.blur();
+        }
+      });
+
+      Toolbox.on(render);
+      render();
+    })();
+  </script>
+</body>
+</html>

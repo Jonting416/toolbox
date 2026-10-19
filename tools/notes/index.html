@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Notes · Toolbox</title>
+  <link rel="stylesheet" href="../../lib/toolbox.css">
+  <style>
+    /* ---- Tool-specific styles go here ---- */
+    .editor {
+      display: block;
+      width: 100%;
+      min-height: 55vh;
+      margin: 16px 0 8px;
+      padding: 16px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--surface);
+      color: var(--ink);
+      font: 15px/1.6 var(--mono);
+      resize: vertical;
+    }
+    .editor:focus { outline: 2px solid var(--accent); outline-offset: 1px; border-color: transparent; }
+    .editor:disabled { background: var(--surface-2); color: var(--ink-3); cursor: not-allowed; }
+    .meta { font: 12px var(--mono); color: var(--ink-3); margin: 0 0 40px; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header class="tool-header">
+      <a class="back-link" href="../../index.html"><span id="back-icon"></span>All tools</a>
+    </header>
+
+    <h1 class="tool-title">Notes</h1>
+
+    <!-- Shows which data file is open and lets the user open / create / reconnect it. -->
+    <div id="databar"></div>
+
+    <!-- ---- Tool UI goes here ---- -->
+    <textarea id="editor" class="editor" spellcheck="true" placeholder="Write anything…" disabled></textarea>
+    <p class="meta" id="meta"></p>
+  </div>
+
+  <script src="../../lib/toolbox.js"></script>
+  <script>
+    /*
+     * Starter template for a Toolbox tool.
+     *
+     *  - TOOL_ID must match this tool's id in tools/registry.js.
+     *  - Read your data with Toolbox.get(TOOL_ID, defaultValue).
+     *  - Save with Toolbox.set(TOOL_ID, value) or Toolbox.update(TOOL_ID, fn).
+     *    Returns false if no data file is open (the data bar asks the user to open one).
+     *  - Toolbox.on(fn) fires whenever the file is opened, reconnected, closed or saved,
+     *    so re-read your data there.
+     *  - Keep the data plain JSON (objects, arrays, strings, numbers, booleans).
+     */
+    (function () {
+      var TOOL_ID = 'notes';
+      var DEFAULT_DATA = { text: '', updatedAt: null };
+
+      var editor = document.getElementById('editor');
+      var meta = document.getElementById('meta');
+      document.getElementById('back-icon').outerHTML = Toolbox.icons.arrow;
+      Toolbox.mountDataBar(document.getElementById('databar'));
+
+      var typingTimer = null;
+
+      // Pull data from the file into the UI.
+      function load() {
+        var s = Toolbox.status();
+        var usable = s.connected && !s.needsReconnect;
+        editor.disabled = !usable;
+        if (!usable) {
+          editor.value = '';
+          editor.placeholder = 'Open or create your data file above to start writing.';
+          meta.textContent = '';
+          return;
+        }
+        editor.placeholder = 'Write anything…';
+        var data = Toolbox.get(TOOL_ID, DEFAULT_DATA);
+        // Don't overwrite what the user is in the middle of typing.
+        if (document.activeElement !== editor || typingTimer === null) editor.value = data.text;
+        meta.textContent = data.updatedAt ? 'Last edited ' + new Date(data.updatedAt).toLocaleString() : '';
+      }
+
+      // Push UI changes into the file (debounced while typing).
+      editor.addEventListener('input', function () {
+        clearTimeout(typingTimer);
+        typingTimer = setTimeout(function () {
+          typingTimer = null;
+          Toolbox.set(TOOL_ID, { text: editor.value, updatedAt: new Date().toISOString() });
+        }, 400);
+      });
+
+      var lastFile = null;
+      Toolbox.on(function (s) {
+        // Only reload the UI when the open file changes, not on every save tick.
+        var key = s.connected && !s.needsReconnect ? s.generation : null;
+        if (key !== lastFile) { lastFile = key; load(); }
+        else if (s.connected) {
+          var d = Toolbox.get(TOOL_ID, DEFAULT_DATA);
+          meta.textContent = d.updatedAt ? 'Last edited ' + new Date(d.updatedAt).toLocaleString() : '';
+        }
+      });
+      Toolbox.ready.then(load);
+    })();
+  </script>
+</body>
+</html>
