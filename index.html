@@ -11,7 +11,9 @@
     .site-header { padding: 40px 0 28px; }
     @media (min-width: 720px) { .site-header { padding: 64px 0 36px; } }
 
+    .site-top { display: flex; align-items: center; gap: 12px; min-height: 36px; }
     .brand { display: flex; align-items: center; gap: 12px; }
+    .section:has(> .wrap > .databar[hidden]) { display: none; }
     .brand-mark {
       display: grid;
       grid-template-columns: 1fr 1fr;
@@ -161,9 +163,12 @@
 <body>
   <header class="site-header">
     <div class="wrap">
-      <div class="brand">
-        <span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
-        <span class="brand-name">Toolbox</span>
+      <div class="site-top">
+        <div class="brand">
+          <span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
+          <span class="brand-name">Toolbox</span>
+        </div>
+        <div id="account"></div>
       </div>
       <h1 class="headline">Small tools. Your data, in your file.</h1>
       <p class="lede">Everything here runs in your browser. There’s no account and no server — what you save goes into one data file you keep wherever you like.</p>
@@ -223,6 +228,7 @@
 
       document.getElementById('search-icon').outerHTML = icons.search;
       Toolbox.mountDataBar(document.getElementById('databar'), { variant: 'panel' });
+      Toolbox.mountAccount(document.getElementById('account'));
 
       var ready = tools.filter(function (t) { return t.status !== 'planned'; }).length;
       document.getElementById('tool-count').textContent =

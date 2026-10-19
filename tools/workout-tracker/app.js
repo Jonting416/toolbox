@@ -888,6 +888,7 @@
 
   document.getElementById('back-icon').outerHTML = Toolbox.icons.arrow;
   Toolbox.mountDataBar($('databar'));
+  Toolbox.mountAccount($('account'));
 
   var h0 = location.hash.slice(1);
   if (TABS.some(function (t) { return t[0] === h0; })) ui.tab = h0;

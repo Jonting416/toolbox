@@ -65,7 +65,7 @@ The API a tool uses:
 | `Toolbox.status()` | `{ connected, mode, fileName, dirty, needsReconnect, toolIds, … }` |
 | `Toolbox.ready` | Promise that resolves once the remembered file has been checked |
 | `Toolbox.mountDataBar(el)` | Drop-in open/create/reconnect/save bar |
+| `Toolbox.mountAccount(el)` | Header chip showing the open file like a signed-in account; while a file is in use it replaces the data bar |
 
 Keep stored data plain JSON. If a tool's data shape changes later, store a
 `schema` number in the tool's section and migrate on load.
->>>>>>> d7249d4 (Initial commit)

@@ -29,6 +29,8 @@
   <div class="wrap">
     <header class="tool-header">
       <a class="back-link" href="../../index.html"><span id="back-icon"></span>All tools</a>
+      <!-- The open data file, shown like a signed-in account. -->
+      <div id="account"></div>
     </header>
 
     <h1 class="tool-title">Notes</h1>
@@ -62,6 +64,7 @@
       var meta = document.getElementById('meta');
       document.getElementById('back-icon').outerHTML = Toolbox.icons.arrow;
       Toolbox.mountDataBar(document.getElementById('databar'));
+      Toolbox.mountAccount(document.getElementById('account'));
 
       var typingTimer = null;
 
