@@ -31,8 +31,8 @@ is the most reliable for the "save automatically" behaviour.
   "createdAt": "2026-10-18T22:00:00.000Z",
   "updatedAt": "2026-10-18T22:05:00.000Z",
   "tools": {
-    "notes": { "text": "…", "updatedAt": "…" },
-    "workout-tracker": { "...": "…" }
+    "notes": { "schemaVersion": 1, "text": "…", "updatedAt": "…" },
+    "workout-tracker": { "schemaVersion": 1, "...": "…" }
   }
 }
 ```
@@ -67,5 +67,8 @@ The API a tool uses:
 | `Toolbox.mountDataBar(el)` | Drop-in open/create/reconnect/save bar |
 | `Toolbox.mountAccount(el)` | Header chip showing the open file like a signed-in account; while a file is in use it replaces the data bar |
 
-Keep stored data plain JSON. If a tool's data shape changes later, store a
-`schema` number in the tool's section and migrate on load.
+Keep stored data plain JSON, as an object with a numeric `schemaVersion`
+(`Toolbox.set` logs a console warning if it's missing). The file's top-level
+`version` covers the envelope only; each tool versions its own section. When a
+tool's data shape changes, bump its `schemaVersion` and upgrade older data on
+load. See `migrate()` in `tools/notes/` for the pattern.

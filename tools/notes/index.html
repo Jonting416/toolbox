@@ -55,10 +55,23 @@
      *  - Toolbox.on(fn) fires whenever the file is opened, reconnected, closed or saved,
      *    so re-read your data there.
      *  - Keep the data plain JSON (objects, arrays, strings, numbers, booleans).
+     *  - Stamp the data with a numeric schemaVersion. Bump it when the shape changes,
+     *    and upgrade older data in migrate() so files saved by earlier versions still load.
      */
     (function () {
       var TOOL_ID = 'notes';
-      var DEFAULT_DATA = { text: '', updatedAt: null };
+      var SCHEMA_VERSION = 1;
+      var DEFAULT_DATA = { schemaVersion: SCHEMA_VERSION, text: '', updatedAt: null };
+
+      // Bring stored data up to SCHEMA_VERSION. Data saved before versioning has none: treat it as v1.
+      function migrate(data) {
+        var v = typeof data.schemaVersion === 'number' ? data.schemaVersion : 1;
+        if (v > SCHEMA_VERSION) throw new Error('These notes were saved by a newer version of this tool.');
+        // (future) if (v < 2) { data = ...; v = 2; }
+        return Object.assign({}, DEFAULT_DATA, data, { schemaVersion: SCHEMA_VERSION });
+      }
+
+      function read() { return migrate(Toolbox.get(TOOL_ID, DEFAULT_DATA)); }
 
       var editor = document.getElementById('editor');
       var meta = document.getElementById('meta');
@@ -80,7 +93,7 @@
           return;
         }
         editor.placeholder = 'Write anything…';
-        var data = Toolbox.get(TOOL_ID, DEFAULT_DATA);
+        var data = read();
         // Don't overwrite what the user is in the middle of typing.
         if (document.activeElement !== editor || typingTimer === null) editor.value = data.text;
         meta.textContent = data.updatedAt ? 'Last edited ' + new Date(data.updatedAt).toLocaleString() : '';
@@ -91,7 +104,7 @@
         clearTimeout(typingTimer);
         typingTimer = setTimeout(function () {
           typingTimer = null;
-          Toolbox.set(TOOL_ID, { text: editor.value, updatedAt: new Date().toISOString() });
+          Toolbox.set(TOOL_ID, { schemaVersion: SCHEMA_VERSION, text: editor.value, updatedAt: new Date().toISOString() });
         }, 400);
       });
 
@@ -101,7 +114,7 @@
         var key = s.connected && !s.needsReconnect ? s.generation : null;
         if (key !== lastFile) { lastFile = key; load(); }
         else if (s.connected) {
-          var d = Toolbox.get(TOOL_ID, DEFAULT_DATA);
+          var d = read();
           meta.textContent = d.updatedAt ? 'Last edited ' + new Date(d.updatedAt).toLocaleString() : '';
         }
       });
