@@ -269,11 +269,15 @@
       '<button type="button" class="btn btn--ghost btn--sm" data-act="move-entry" data-dir="1" aria-label="Move down"' + (i === s.entries.length - 1 ? ' disabled' : '') + '>↓</button>' +
       '<button type="button" class="btn btn--ghost btn--sm btn--danger" data-act="remove-entry" aria-label="Remove exercise">✕</button></div></div>';
     var shared = C.weightMode(e) === 'shared', wLabel = (bw ? 'Added weight' : 'Weight');
+    // Body is centered in the card and capped in width; columns stretch proportionally.
+    h += '<div class="wt-entry-body"><div class="wt-sets' + (shared ? ' wt-sets--shared' : '') + '">';
     if (shared) {
-      h += '<div class="wt-entry-weight"><label class="wt-label" for="w-' + i + '">' + wLabel + ' · all sets</label>' +
-        '<div class="wt-wbox">' + weightField('entry-weight', C.sharedWeight(e), unit, 'w-' + i, wLabel + ' for every set, in ' + unit, true) + '</div></div>';
+      // Same grid as the set rows: the weight box lines up with Reps, ⚖️ with Done.
+      h += '<div class="wt-weightrow"><span></span><div class="wt-weightcell"><label class="wt-label" for="w-' + i + '">' + wLabel + ' (' + unit + ') · all sets</label>' +
+        '<input class="wt-in wt-weight" data-f="entry-weight" id="w-' + i + '" inputmode="decimal" aria-label="' + esc(wLabel + ' for every set, in ' + unit) + '" value="' + esc(C.displayWeight(C.sharedWeight(e), unit)) + '"></div>' +
+        weightButton() + '<span></span></div>';
     }
-    h += '<div class="wt-sets' + (shared ? ' wt-sets--shared' : '') + '"><div class="wt-sethead"><span>Set</span>' +
+    h += '<div class="wt-sethead"><span>Set</span>' +
       (shared ? '' : '<span>' + (bw ? '+' : '') + unit + '</span>') + '<span>Reps</span><span>Done</span><span></span></div>';
     (e.sets || []).forEach(function (st, j) {
       var key = i + ':' + j, open = ui.openSet === key;
@@ -293,17 +297,23 @@
           '<div class="wide"><button type="button" class="btn btn--sm btn--danger" data-act="remove-set">Remove set</button></div></div>';
       }
     });
-    h += '</div><div class="wt-row between" style="margin-top:8px"><button type="button" class="btn btn--sm" data-act="add-set">+ Add set</button>' +
-      '<button type="button" class="btn btn--ghost btn--sm" data-act="weight-mode">' + (shared ? 'Different weight per set' : 'Same weight for all sets') + '</button></div></div>';
+    h += '</div><div class="wt-entry-foot"><button type="button" class="btn btn--sm" data-act="add-set">+ Add set</button>' +
+      '<button type="button" class="wt-switch" role="switch" aria-checked="' + !shared + '" data-act="weight-mode">' +
+        '<span class="wt-switch-label">Different weight per set</span>' +
+        '<span class="wt-switch-track" aria-hidden="true"><span class="wt-switch-thumb"></span></span></button>' +
+      '</div></div></div>';
     return h;
   }
 
-  /** A typed weight box (optionally with its unit) plus the ± button that opens the step sheet. */
-  function weightField(f, kg, unit, id, label, showUnit) {
+  /** The ⚖️ button that opens the adjust-weight sheet. */
+  function weightButton() {
+    return '<button type="button" class="wt-wbtn" data-act="weight-sheet" aria-label="Adjust weight in steps" title="Adjust weight in steps"><span aria-hidden="true">⚖️</span></button>';
+  }
+
+  /** A typed per-set weight box plus its ⚖️ button. */
+  function weightField(f, kg, unit, id, label) {
     return '<input class="wt-in wt-weight" data-f="' + f + '"' + (id ? ' id="' + id + '"' : '') + ' inputmode="decimal" aria-label="' + esc(label) + '"' +
-      ' value="' + esc(C.displayWeight(kg, unit)) + '">' +
-      (showUnit ? '<span class="wt-unit">' + unit + '</span>' : '') +
-      '<button type="button" class="wt-wbtn" data-act="weight-sheet" aria-label="Adjust weight in steps">±</button>';
+      ' value="' + esc(C.displayWeight(kg, unit)) + '">' + weightButton();
   }
 
   /* ---------- adjust-weight sheet ---------- */

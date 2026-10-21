@@ -15,11 +15,11 @@ tests/core.test.js                 node --test tools/workout-tracker/tests/core.
 ```
 
 ## Logging weight
-- Weights are typed into a box. The **±** button beside it opens an "Adjust weight" sheet
+- Weights are typed into a box. The **⚖️** button beside it opens an "Adjust weight" sheet
   with steps of 5 / 10 / 25 / 45 lb (2.5 / 5 / 10 / 20 kg).
-- By default an exercise has **one weight for all its sets**. "Different weight per set"
-  switches that exercise to a weight box on every set; "Same weight for all sets" switches
-  back (using set 1's weight).
+- By default an exercise has **one weight for all its sets**. Turning on the
+  "Different weight per set" switch gives that exercise a weight box on every set;
+  turning it off goes back to one weight (set 1's, after confirming if they differ).
 - Every set still stores its own `weightKg`, so history, CSV, merge and "Previous" are
   unaffected. The entry only records `weightMode: 'shared' | 'perSet'`; entries without it
   are shared when all their sets have the same weight (see `core.weightMode`).
