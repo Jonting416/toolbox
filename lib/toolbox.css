@@ -50,6 +50,13 @@
 
 html { -webkit-text-size-adjust: 100%; }
 
+/* touch-action: manipulation turns off double-tap-to-zoom (and the tap delay that
+   comes with it) so taps behave like an app, while scrolling and pinch-to-zoom keep
+   working for anyone who needs to enlarge text. Set on every element because inner
+   scroll areas don't reliably take it from <html>. Don't use user-scalable=no
+   instead: it also blocks pinch zoom, and iOS ignores it anyway. */
+*, *::before, *::after { touch-action: manipulation; }
+
 body {
   margin: 0;
   background: var(--bg);
