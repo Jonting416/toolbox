@@ -37,7 +37,7 @@ window.TOOLBOX_TOOLS = [
   {
     id: 'notes',
     name: 'Notes',
-    description: 'A simple scratchpad saved to your data file. Also the starter template for new tools.',
+    description: 'Plain-text notes, each saved separately in your data file. Also the starter template for new tools.',
     icon: 'note',
     path: 'tools/notes/',
     status: 'ready',

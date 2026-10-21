@@ -7,11 +7,92 @@
   <link rel="stylesheet" href="../../lib/toolbox.css">
   <style>
     /* ---- Tool-specific styles go here ---- */
+    .note-bar { display: flex; align-items: center; gap: 8px; margin: 16px 0 8px; }
+
+    /* Note picker: a button that opens a searchable list of notes. */
+    .picker { position: relative; flex: 1 1 auto; min-width: 0; max-width: 420px; }
+    .picker-btn {
+      appearance: none;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      width: 100%;
+      height: 36px;
+      padding: 0 10px 0 12px;
+      border: 1px solid var(--line-strong);
+      border-radius: var(--radius-sm);
+      background: var(--surface);
+      color: var(--ink);
+      font: 600 14px/1 var(--font);
+      text-align: left;
+      cursor: pointer;
+    }
+    .picker-btn:hover:not(:disabled), .picker-btn[aria-expanded="true"] { border-color: var(--ink-3); }
+    .picker-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+    .picker-btn:disabled { color: var(--ink-3); cursor: not-allowed; }
+    .picker-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .picker-count { flex: none; font: 500 12px var(--mono); color: var(--ink-3); }
+    .picker-btn svg { flex: none; width: 16px; height: 16px; color: var(--ink-3); transform: rotate(90deg); }
+
+    .picker-pop {
+      position: absolute;
+      top: calc(100% + 6px);
+      left: 0;
+      z-index: 20;
+      width: min(420px, calc(100vw - 32px));
+      padding: 8px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--surface);
+      box-shadow: var(--shadow);
+    }
+    .picker-search {
+      width: 100%;
+      height: 36px;
+      padding: 0 10px;
+      border: 1px solid var(--line-strong);
+      border-radius: var(--radius-sm);
+      background: var(--bg);
+      color: var(--ink);
+      font: 14px var(--font);
+    }
+    .picker-search:focus { outline: 2px solid var(--accent); outline-offset: 1px; border-color: transparent; }
+    .picker-list { list-style: none; margin: 6px 0 0; padding: 0; max-height: min(50vh, 360px); overflow-y: auto; }
+    .picker-opt {
+      display: flex;
+      align-items: baseline;
+      gap: 12px;
+      padding: 8px 10px;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+    }
+    .picker-opt.is-active { background: var(--surface-2); }
+    .picker-opt[aria-selected="true"] .picker-title { color: var(--accent); }
+    .picker-title { flex: 1; min-width: 0; font-size: 14px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .picker-title--empty { color: var(--ink-3); font-style: italic; font-weight: 500; }
+    .picker-date { flex: none; font: 11px var(--mono); color: var(--ink-3); }
+    .picker-none { padding: 10px; font-size: 14px; color: var(--ink-3); }
+
+    .note-name {
+      display: block;
+      width: 100%;
+      margin: 0 0 8px;
+      padding: 10px 16px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--surface);
+      color: var(--ink);
+      font: 650 20px/1.3 var(--font);
+      letter-spacing: -.01em;
+    }
+    .note-name::placeholder { color: var(--ink-3); font-weight: 500; }
+    .note-name:focus { outline: 2px solid var(--accent); outline-offset: 1px; border-color: transparent; }
+    .note-name:disabled { background: var(--surface-2); cursor: not-allowed; }
+
     .editor {
       display: block;
       width: 100%;
-      min-height: 55vh;
-      margin: 16px 0 8px;
+      min-height: 60vh;
       padding: 16px;
       border: 1px solid var(--line);
       border-radius: var(--radius);
@@ -22,7 +103,9 @@
     }
     .editor:focus { outline: 2px solid var(--accent); outline-offset: 1px; border-color: transparent; }
     .editor:disabled { background: var(--surface-2); color: var(--ink-3); cursor: not-allowed; }
-    .meta { font: 12px var(--mono); color: var(--ink-3); margin: 0 0 40px; }
+    .note-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 8px 0 40px; }
+    .meta { font: 12px var(--mono); color: var(--ink-3); margin: 0; }
+    .btn--danger { color: var(--danger); }
   </style>
 </head>
 <body>
@@ -39,8 +122,27 @@
     <div id="databar"></div>
 
     <!-- ---- Tool UI goes here ---- -->
-    <textarea id="editor" class="editor" spellcheck="true" placeholder="Write anything…" disabled></textarea>
-    <p class="meta" id="meta"></p>
+    <div class="note-bar">
+      <div class="picker" id="picker">
+        <button type="button" class="picker-btn" id="picker-btn" aria-haspopup="listbox" aria-expanded="false" disabled>
+          <span class="picker-label" id="picker-label">No notes</span>
+          <span class="picker-count" id="picker-count"></span>
+          <span id="picker-chevron"></span>
+        </button>
+        <div class="picker-pop" id="picker-pop" hidden>
+          <input type="search" class="picker-search" id="picker-search" placeholder="Search notes" autocomplete="off"
+                 role="combobox" aria-label="Search notes" aria-controls="picker-list" aria-expanded="true" aria-autocomplete="list">
+          <ul class="picker-list" id="picker-list" role="listbox" aria-label="Notes"></ul>
+        </div>
+      </div>
+      <button type="button" class="btn btn--primary" id="new-note" disabled>New note</button>
+    </div>
+    <input type="text" id="note-name" class="note-name" placeholder="Note name" aria-label="Note name" autocomplete="off" maxlength="200" disabled>
+    <textarea id="editor" class="editor" spellcheck="true" aria-label="Note text" disabled></textarea>
+    <div class="note-foot">
+      <p class="meta" id="meta"></p>
+      <button type="button" class="btn btn--ghost btn--danger" id="delete-note" hidden>Delete note</button>
+    </div>
   </div>
 
   <script src="../../lib/toolbox.js"></script>
@@ -57,66 +159,250 @@
      *  - Keep the data plain JSON (objects, arrays, strings, numbers, booleans).
      *  - Stamp the data with a numeric schemaVersion. Bump it when the shape changes,
      *    and upgrade older data in migrate() so files saved by earlier versions still load.
+     *
+     * Data (schemaVersion 2):
+     *   { schemaVersion: 2, notes: [{ id, title, text, createdAt, updatedAt }] }
+     * `title` is the name the user gives the note. It's optional: an unnamed note
+     * is listed by its first non-empty line.
      */
     (function () {
       var TOOL_ID = 'notes';
-      var SCHEMA_VERSION = 1;
-      var DEFAULT_DATA = { schemaVersion: SCHEMA_VERSION, text: '', updatedAt: null };
+      var SCHEMA_VERSION = 2;
+      var DEFAULT_DATA = { schemaVersion: SCHEMA_VERSION, notes: [] };
 
-      // Bring stored data up to SCHEMA_VERSION. Data saved before versioning has none: treat it as v1.
+      function nowIso() { return new Date().toISOString(); }
+      function newId() { return 'n_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8); }
+
+      // Bring stored data up to SCHEMA_VERSION, one step at a time.
+      // Data saved before versioning has none: treat it as v1.
       function migrate(data) {
         var v = typeof data.schemaVersion === 'number' ? data.schemaVersion : 1;
         if (v > SCHEMA_VERSION) throw new Error('These notes were saved by a newer version of this tool.');
-        // (future) if (v < 2) { data = ...; v = 2; }
-        return Object.assign({}, DEFAULT_DATA, data, { schemaVersion: SCHEMA_VERSION });
+        if (v < 2) {
+          // v1 was a single scratchpad: { text, updatedAt }. Keep it as the first note.
+          // Fixed id, because this runs on every read until the migrated data is saved.
+          var at = data.updatedAt || nowIso();
+          data = { notes: data.text ? [{ id: 'n_v1', text: data.text, createdAt: at, updatedAt: at }] : [] };
+          v = 2;
+        }
+        return { schemaVersion: SCHEMA_VERSION, notes: Array.isArray(data.notes) ? data.notes : [] };
       }
 
       function read() { return migrate(Toolbox.get(TOOL_ID, DEFAULT_DATA)); }
+      function write(fn) { return Toolbox.update(TOOL_ID, function (d) { d = migrate(d); fn(d); return d; }, DEFAULT_DATA); }
 
-      var editor = document.getElementById('editor');
-      var meta = document.getElementById('meta');
-      document.getElementById('back-icon').outerHTML = Toolbox.icons.arrow;
-      Toolbox.mountDataBar(document.getElementById('databar'));
-      Toolbox.mountAccount(document.getElementById('account'));
+      function titleOf(note) {
+        var name = (note.title || '').trim();
+        if (name) return name;
+        var line = (note.text || '').split('\n').map(function (l) { return l.trim(); }).filter(Boolean)[0];
+        return line ? line.slice(0, 80) : '';
+      }
+      function byRecent(a, b) { return a.updatedAt < b.updatedAt ? 1 : a.updatedAt > b.updatedAt ? -1 : 0; }
+      function find(notes, id) { return notes.filter(function (n) { return n.id === id; })[0]; }
 
+      var esc = Toolbox.escape;
+      var $ = function (id) { return document.getElementById(id); };
+      var nameInput = $('note-name'), editor = $('editor'), meta = $('meta'), newBtn = $('new-note'), delBtn = $('delete-note');
+      var picker = $('picker'), pickerBtn = $('picker-btn'), pickerLabel = $('picker-label'), pickerCount = $('picker-count');
+      var pop = $('picker-pop'), search = $('picker-search'), listEl = $('picker-list');
+      $('back-icon').outerHTML = Toolbox.icons.arrow;
+      $('picker-chevron').outerHTML = Toolbox.icons.arrow;
+      Toolbox.mountDataBar($('databar'));
+      Toolbox.mountAccount($('account'));
+
+      var selectedId = location.hash.slice(1) || null; // the open note, kept in the URL
       var typingTimer = null;
+      var shown = [];      // notes currently listed in the picker
+      var active = 0;      // keyboard-highlighted row in the picker
+
+      function usable() { var s = Toolbox.status(); return s.connected && !s.needsReconnect; }
+
+      /* ---------- note picker ---------- */
+
+      function renderPickerButton(notes) {
+        var note = find(notes, selectedId);
+        var title = note ? titleOf(note) || 'Untitled' : (usable() ? 'No notes yet' : 'No notes');
+        pickerLabel.textContent = title;
+        pickerCount.textContent = notes.length > 1 ? notes.length + ' notes' : '';
+        pickerBtn.disabled = !notes.length;
+      }
+
+      function renderPickerList(notes) {
+        var words = search.value.trim().toLowerCase().split(/\s+/).filter(Boolean);
+        shown = notes.slice().sort(byRecent).filter(function (n) {
+          var t = (titleOf(n) || 'untitled').toLowerCase();
+          return words.every(function (w) { return t.indexOf(w) !== -1; });
+        });
+        active = Math.min(active, Math.max(shown.length - 1, 0));
+        if (!shown.length) {
+          listEl.innerHTML = '<li class="picker-none">No notes match.</li>';
+          search.removeAttribute('aria-activedescendant');
+          return;
+        }
+        listEl.innerHTML = shown.map(function (n, i) {
+          var title = titleOf(n);
+          return '<li class="picker-opt' + (i === active ? ' is-active' : '') + '" role="option" id="opt-' + esc(n.id) + '"' +
+            ' data-id="' + esc(n.id) + '" aria-selected="' + (n.id === selectedId) + '">' +
+            '<span class="picker-title' + (title ? '' : ' picker-title--empty') + '">' + esc(title || 'Untitled') + '</span>' +
+            '<span class="picker-date">' + esc(Toolbox.timeAgo(new Date(n.updatedAt))) + '</span>' +
+          '</li>';
+        }).join('');
+        search.setAttribute('aria-activedescendant', 'opt-' + shown[active].id);
+        var row = listEl.children[active];
+        if (row && row.scrollIntoView) row.scrollIntoView({ block: 'nearest' });
+      }
+
+      function openPicker() {
+        if (pickerBtn.disabled) return;
+        var notes = read().notes;
+        search.value = '';
+        active = Math.max(notes.slice().sort(byRecent).map(function (n) { return n.id; }).indexOf(selectedId), 0);
+        pop.hidden = false;
+        pickerBtn.setAttribute('aria-expanded', 'true');
+        renderPickerList(notes);
+        search.focus();
+      }
+
+      function closePicker(refocus) {
+        if (pop.hidden) return;
+        pop.hidden = true;
+        pickerBtn.setAttribute('aria-expanded', 'false');
+        if (refocus) pickerBtn.focus();
+      }
+
+      pickerBtn.addEventListener('click', function () { if (pop.hidden) openPicker(); else closePicker(); });
+      search.addEventListener('input', function () { active = 0; renderPickerList(read().notes); });
+      search.addEventListener('keydown', function (e) {
+        if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+          e.preventDefault();
+          if (!shown.length) return;
+          active = (active + (e.key === 'ArrowDown' ? 1 : shown.length - 1)) % shown.length;
+          renderPickerList(read().notes);
+        } else if (e.key === 'Enter') {
+          e.preventDefault();
+          if (shown[active]) { closePicker(); select(shown[active].id); editor.focus(); }
+        } else if (e.key === 'Escape') {
+          e.preventDefault();
+          closePicker(true);
+        } else if (e.key === 'Tab') {
+          closePicker();
+        }
+      });
+      listEl.addEventListener('mousedown', function (e) { e.preventDefault(); }); // keep focus in the search box
+      listEl.addEventListener('click', function (e) {
+        var opt = e.target.closest('.picker-opt');
+        if (!opt) return;
+        closePicker();
+        select(opt.dataset.id);
+        editor.focus();
+      });
+      document.addEventListener('click', function (e) { if (!picker.contains(e.target)) closePicker(); });
+
+      /* ---------- editor ---------- */
+
+      function renderMeta(note) {
+        meta.textContent = note && note.updatedAt ? 'Last edited ' + new Date(note.updatedAt).toLocaleString() : '';
+      }
 
       // Pull data from the file into the UI.
       function load() {
-        var s = Toolbox.status();
-        var usable = s.connected && !s.needsReconnect;
-        editor.disabled = !usable;
-        if (!usable) {
+        var ok = usable();
+        newBtn.disabled = !ok;
+        if (!ok) {
+          closePicker();
+          renderPickerButton([]);
+          nameInput.disabled = true;
+          nameInput.value = '';
+          editor.disabled = true;
           editor.value = '';
           editor.placeholder = 'Open or create your data file above to start writing.';
-          meta.textContent = '';
+          delBtn.hidden = true;
+          renderMeta(null);
           return;
         }
-        editor.placeholder = 'Write anything…';
-        var data = read();
+        var notes = read().notes;
+        var note = find(notes, selectedId);
+        if (!note && notes.length) note = notes.slice().sort(byRecent)[0];
+        selectedId = note ? note.id : null;
+        if (selectedId) history.replaceState(null, '', '#' + selectedId);
+
+        renderPickerButton(notes);
+        nameInput.disabled = editor.disabled = !note;
+        editor.placeholder = note ? 'Write anything…' : 'Create a note to start writing.';
         // Don't overwrite what the user is in the middle of typing.
-        if (document.activeElement !== editor || typingTimer === null) editor.value = data.text;
-        meta.textContent = data.updatedAt ? 'Last edited ' + new Date(data.updatedAt).toLocaleString() : '';
+        if (typingTimer === null || (document.activeElement !== editor && document.activeElement !== nameInput)) {
+          nameInput.value = note ? note.title || '' : '';
+          editor.value = note ? note.text : '';
+        }
+        delBtn.hidden = !note;
+        renderMeta(note);
+      }
+
+      function saveEditor() {
+        var id = selectedId, title = nameInput.value, text = editor.value;
+        write(function (d) {
+          var n = find(d.notes, id);
+          if (n && (n.text !== text || (n.title || '') !== title)) { n.title = title; n.text = text; n.updatedAt = nowIso(); }
+        });
+      }
+
+      function flushTyping() {
+        if (typingTimer === null) return;
+        clearTimeout(typingTimer);
+        typingTimer = null;
+        saveEditor();
+      }
+
+      function select(id) {
+        flushTyping();
+        selectedId = id;
+        history.replaceState(null, '', '#' + id);
+        load();
       }
 
       // Push UI changes into the file (debounced while typing).
-      editor.addEventListener('input', function () {
+      function onType() {
         clearTimeout(typingTimer);
-        typingTimer = setTimeout(function () {
-          typingTimer = null;
-          Toolbox.set(TOOL_ID, { schemaVersion: SCHEMA_VERSION, text: editor.value, updatedAt: new Date().toISOString() });
-        }, 400);
+        typingTimer = setTimeout(function () { typingTimer = null; saveEditor(); }, 400);
+      }
+      nameInput.addEventListener('input', onType);
+      editor.addEventListener('input', onType);
+      // Enter in the name moves on to the note text.
+      nameInput.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter') { e.preventDefault(); editor.focus(); }
+      });
+
+      newBtn.addEventListener('click', function () {
+        flushTyping();
+        var at = nowIso(), id = newId();
+        if (!write(function (d) { d.notes.push({ id: id, title: '', text: '', createdAt: at, updatedAt: at }); })) return;
+        select(id);
+        nameInput.focus();
+      });
+
+      delBtn.addEventListener('click', function () {
+        if (!selectedId) return;
+        var note = find(read().notes, selectedId);
+        var label = note && titleOf(note) ? '“' + titleOf(note) + '”' : 'this note';
+        if (!confirm('Delete ' + label + '? This can’t be undone.')) return;
+        clearTimeout(typingTimer);
+        typingTimer = null;
+        var id = selectedId;
+        selectedId = null;
+        write(function (d) { d.notes = d.notes.filter(function (n) { return n.id !== id; }); });
+        load();
       });
 
       var lastFile = null;
       Toolbox.on(function (s) {
-        // Only reload the UI when the open file changes, not on every save tick.
+        // Fully reload when the open file changes; otherwise just refresh titles and dates.
         var key = s.connected && !s.needsReconnect ? s.generation : null;
-        if (key !== lastFile) { lastFile = key; load(); }
-        else if (s.connected) {
-          var d = read();
-          meta.textContent = d.updatedAt ? 'Last edited ' + new Date(d.updatedAt).toLocaleString() : '';
-        }
+        if (key !== lastFile) { lastFile = key; load(); return; }
+        if (!usable()) return;
+        var notes = read().notes;
+        renderPickerButton(notes);
+        if (!pop.hidden) renderPickerList(notes);
+        renderMeta(find(notes, selectedId));
       });
       Toolbox.ready.then(load);
     })();
