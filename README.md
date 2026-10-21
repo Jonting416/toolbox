@@ -64,9 +64,11 @@ for anonymous page-view counts.
 - **Chrome, Edge, Opera (and other Chromium browsers):** the site gets a handle to
   the real file and saves changes to it automatically. The browser remembers the
   file between visits; it may ask for permission again with one click ("Reconnect").
-- **Firefox, Safari:** the file is opened with a normal file picker. Changes are kept
-  as a working copy in the browser until the user clicks **Download file**, then
-  they replace their old file with the download.
+- **Firefox, Safari:** the file is opened with a normal file picker. These browsers
+  can't write to files, so changes are kept as a working copy in the browser until the
+  user clicks **Save file**. An info box explains this (it can be turned off with
+  "Don't show this again"), then the browser downloads an updated copy that replaces
+  the old file.
 
 Put the data file in a synced folder (iCloud Drive, Dropbox, OneDrive…) to use it
 across devices. Avoid editing in two tabs at once — the last save wins.
