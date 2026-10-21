@@ -268,16 +268,20 @@
       '<button type="button" class="btn btn--ghost btn--sm" data-act="move-entry" data-dir="-1" aria-label="Move up"' + (i === 0 ? ' disabled' : '') + '>↑</button>' +
       '<button type="button" class="btn btn--ghost btn--sm" data-act="move-entry" data-dir="1" aria-label="Move down"' + (i === s.entries.length - 1 ? ' disabled' : '') + '>↓</button>' +
       '<button type="button" class="btn btn--ghost btn--sm btn--danger" data-act="remove-entry" aria-label="Remove exercise">✕</button></div></div>';
-    h += '<div class="wt-sets"><div class="wt-sethead"><span>Set</span><span>' + (bw ? '+' : '') + unit + '</span><span>Reps</span><span>Done</span><span></span></div>';
+    var shared = C.weightMode(e) === 'shared', wLabel = (bw ? 'Added weight' : 'Weight');
+    if (shared) {
+      h += '<div class="wt-entry-weight"><label class="wt-label" for="w-' + i + '">' + wLabel + ' · all sets</label>' +
+        '<div class="wt-wbox">' + weightField('entry-weight', C.sharedWeight(e), unit, 'w-' + i, wLabel + ' for every set, in ' + unit, true) + '</div></div>';
+    }
+    h += '<div class="wt-sets' + (shared ? ' wt-sets--shared' : '') + '"><div class="wt-sethead"><span>Set</span>' +
+      (shared ? '' : '<span>' + (bw ? '+' : '') + unit + '</span>') + '<span>Reps</span><span>Done</span><span></span></div>';
     (e.sets || []).forEach(function (st, j) {
       var key = i + ':' + j, open = ui.openSet === key;
       var typeTag = st.type && st.type !== 'working' ? '<span class="t">' + esc(st.type === 'warmup' ? 'W' : st.type === 'dropset' ? 'D' : 'F') + '</span>' : '';
       h += '<div class="wt-set' + (st.completed ? ' done' : '') + '" data-j="' + j + '">' +
         '<span class="wt-setno">' + (j + 1) + typeTag + '</span>' +
-        '<span class="wt-wt"><button type="button" class="wt-step" data-act="step" data-dir="-1" aria-label="Decrease weight">−</button>' +
-        '<input class="wt-in" data-f="set-weight" inputmode="decimal" aria-label="Weight in ' + unit + '" value="' + esc(C.displayWeight(st.weightKg, unit)) + '">' +
-        '<button type="button" class="wt-step" data-act="step" data-dir="1" aria-label="Increase weight">+</button></span>' +
-        '<input class="wt-in wt-reps" data-f="set-reps" inputmode="numeric" aria-label="Reps" value="' + (st.reps == null ? '' : st.reps) + '">' +
+        (shared ? '' : '<span class="wt-wbox">' + weightField('set-weight', st.weightKg, unit, null, 'Set ' + (j + 1) + ' weight in ' + unit) + '</span>') +
+        '<input class="wt-in wt-reps" data-f="set-reps" inputmode="numeric" aria-label="Set ' + (j + 1) + ' reps" value="' + (st.reps == null ? '' : st.reps) + '">' +
         '<button type="button" class="wt-check" data-act="toggle-set" aria-pressed="' + !!st.completed + '" aria-label="Mark set done">✓</button>' +
         '<button type="button" class="wt-more" data-act="set-more" aria-label="Set options" aria-expanded="' + open + '">⋯</button></div>';
       if (open) {
@@ -289,8 +293,69 @@
           '<div class="wide"><button type="button" class="btn btn--sm btn--danger" data-act="remove-set">Remove set</button></div></div>';
       }
     });
-    h += '</div><div class="wt-row" style="margin-top:8px"><button type="button" class="btn btn--sm" data-act="add-set">+ Add set</button></div></div>';
+    h += '</div><div class="wt-row between" style="margin-top:8px"><button type="button" class="btn btn--sm" data-act="add-set">+ Add set</button>' +
+      '<button type="button" class="btn btn--ghost btn--sm" data-act="weight-mode">' + (shared ? 'Different weight per set' : 'Same weight for all sets') + '</button></div></div>';
     return h;
+  }
+
+  /** A typed weight box (optionally with its unit) plus the ± button that opens the step sheet. */
+  function weightField(f, kg, unit, id, label, showUnit) {
+    return '<input class="wt-in wt-weight" data-f="' + f + '"' + (id ? ' id="' + id + '"' : '') + ' inputmode="decimal" aria-label="' + esc(label) + '"' +
+      ' value="' + esc(C.displayWeight(kg, unit)) + '">' +
+      (showUnit ? '<span class="wt-unit">' + unit + '</span>' : '') +
+      '<button type="button" class="wt-wbtn" data-act="weight-sheet" aria-label="Adjust weight in steps">±</button>';
+  }
+
+  /* ---------- adjust-weight sheet ---------- */
+
+  // Target: one set (j >= 0) or the whole exercise in shared mode (j < 0).
+  function weightTarget(d, i, j) {
+    var e = byId(d.sessions, ui.sessionId).entries[i];
+    return { entry: e, kg: j >= 0 ? e.sets[j].weightKg : C.sharedWeight(e) };
+  }
+
+  function openWeightSheet(i, j) {
+    var d = load(), unit = unitOf(d), t = weightTarget(d, i, j), steps = C.WEIGHT_STEPS[unit] || C.WEIGHT_STEPS.lb;
+    var what = esc(C.exerciseName(libIndex(d), t.entry)) + ' · ' + (j >= 0 ? 'set ' + (j + 1) : 'all sets');
+    var btns = function (sign) {
+      return steps.map(function (n) {
+        return '<button type="button" class="wt-wm-step" data-act="wm-step" data-delta="' + (sign * n) + '">' + (sign < 0 ? '−' : '+') + n + '</button>';
+      }).join('');
+    };
+    openModal('<div class="wt-row between"><h3 class="wt-h" style="margin:0">Adjust weight</h3>' +
+      '<button type="button" class="btn btn--primary" data-act="close-modal">Done</button></div>' +
+      '<p class="wt-small wt-muted" style="margin:4px 0 0">' + what + '</p>' +
+      '<div class="wt-wm-value" aria-live="polite"><span id="wm-value">' + esc(C.displayWeight(t.kg, unit) || '0') + '</span> ' + unit + '</div>' +
+      '<div class="wt-wm-grid">' + btns(-1) + btns(1) + '</div>');
+    modalRefresh = { weight: { i: i, j: j }, onClose: render };
+  }
+
+  function stepWeightSheet(delta) {
+    var w = modalRefresh && modalRefresh.weight;
+    if (!w) return;
+    var d = load(), unit = unitOf(d), next = C.stepWeight(weightTarget(d, w.i, w.j).kg, delta, unit);
+    mutSession(function (s) {
+      var e = s.entries[w.i];
+      if (w.j >= 0) { e.sets[w.j].weightKg = next; e.sets[w.j].enteredUnit = unit; }
+      else C.setAllWeights(e, next, unit);
+    });
+    $('wm-value').textContent = C.displayWeight(next, unit);
+  }
+
+  function toggleWeightMode(i) {
+    var d = load(), e = byId(d.sessions, ui.sessionId).entries[i], unit = unitOf(d);
+    if (C.weightMode(e) === 'perSet') {
+      var first = C.sharedWeight(e);
+      if (C.hasMixedWeights(e) && !confirm('Use ' + (first == null ? 'no weight' : wfmt(first, unit)) + ' (set 1’s weight) for every set?')) return;
+      mutSession(function (s) {
+        var en = s.entries[i];
+        en.weightMode = 'shared';
+        C.setAllWeights(en, C.sharedWeight(en), (en.sets[0] && en.sets[0].enteredUnit) || unit);
+      });
+    } else {
+      mutSession(function (s) { s.entries[i].weightMode = 'perSet'; });
+    }
+    render();
   }
 
   function mutSession(fn) {
@@ -538,7 +603,7 @@
       sel('weightUnit', 'Weight unit', [['lb', 'Pounds (lb)'], ['kg', 'Kilograms (kg)']]) +
       sel('weekStart', 'Week starts on', [['mon', 'Monday'], ['sun', 'Sunday']]) +
       sel('theme', 'Theme', [['system', 'System'], ['light', 'Light'], ['dark', 'Dark']]) +
-      num('restSeconds', 'Default rest (seconds)') + num('incrementLb', '+/− step (lb)') + num('incrementKg', '+/− step (kg)') + '</div>' +
+      num('restSeconds', 'Default rest (seconds)') + '</div>' +
       '<label class="wt-small" style="display:block;margin-top:12px"><input type="checkbox" data-f="setting-bool" data-key="useLastValues"' + (s.useLastValues ? ' checked' : '') +
       '> Start new sets from my last performance of each exercise</label>' +
       '<p class="wt-small wt-muted">Changing the unit never changes stored data; weights are kept in kilograms and converted for display.</p></div>';
@@ -621,7 +686,11 @@
     var f = modalEl.querySelector('input:not([type=hidden]), textarea');
     if (f) f.focus();
   }
-  function closeModal() { modalEl.hidden = true; modalEl.innerHTML = ''; modalRefresh = null; }
+  function closeModal() {
+    var r = modalRefresh;
+    modalEl.hidden = true; modalEl.innerHTML = ''; modalRefresh = null;
+    if (r && r.onClose) r.onClose();
+  }
 
   function openPicker(onPick) {
     var d = load();
@@ -714,16 +783,9 @@
       }
       case 'toggle-set':
         mutSession(function (s) { var st = s.entries[cx.i].sets[cx.j]; st.completed = !st.completed; }); render(); break;
-      case 'step': {
-        d = load();
-        var set = byId(d.sessions, ui.sessionId).entries[cx.i].sets[cx.j], unit = unitOf(d), st = C.getSettings(d);
-        var step = unit === 'lb' ? st.incrementLb : st.incrementKg;
-        var cur = set.weightKg == null ? 0 : C.fromKg(set.weightKg, unit);
-        var next = Math.max(0, Math.round((cur + step * +el.dataset.dir) * 4) / 4);
-        mutSession(function (s) { var t = s.entries[cx.i].sets[cx.j]; t.weightKg = C.toKg(next, unit); t.enteredUnit = unit; });
-        var input = el.parentNode.querySelector('input'); input.value = C.displayWeight(C.toKg(next, unit), unit);
-        break;
-      }
+      case 'weight-sheet': openWeightSheet(cx.i, cx.j); break;
+      case 'wm-step': stepWeightSheet(+el.dataset.delta); break;
+      case 'weight-mode': toggleWeightMode(cx.i); break;
 
       case 'view-exercise': exerciseDetail(load(), id); break;
       case 'new-exercise': exerciseForm(load(), null); break;
@@ -810,6 +872,14 @@
         mutSession(function (s) { var t = s.entries[cx.i].sets[cx.j]; t.weightKg = w.weightKg; t.enteredUnit = w.enteredUnit; });
         el.value = C.displayWeight(w.weightKg, unit);
         break;
+      case 'entry-weight': {
+        unit = unitOf(load());
+        var ew = el.value.trim() === '' ? { weightKg: null, enteredUnit: null } : C.parseWeight(el.value, unit);
+        if (!ew) { render(); break; }
+        mutSession(function (s) { var en = s.entries[cx.i]; en.weightMode = 'shared'; C.setAllWeights(en, ew.weightKg, ew.enteredUnit); });
+        el.value = C.displayWeight(ew.weightKg, unit);
+        break;
+      }
       case 'set-reps': mutSession(function (s) { s.entries[cx.i].sets[cx.j].reps = numOrNull(el.value, true); }); break;
       case 'set-type': mutSession(function (s) { s.entries[cx.i].sets[cx.j].type = el.value; }); render(); break;
       case 'set-rpe': mutSession(function (s) { var v = numOrNull(el.value); if (v == null) delete s.entries[cx.i].sets[cx.j].rpe; else s.entries[cx.i].sets[cx.j].rpe = v; }); break;
@@ -894,13 +964,17 @@
   var h0 = location.hash.slice(1);
   if (TABS.some(function (t) { return t[0] === h0; })) ui.tab = h0;
 
+  // Which file is open: changes only when a different file is opened / reconnected / closed.
+  function fileKey(s) { return s.ready ? (s.connected && !s.needsReconnect ? 'g' + s.generation : 'none') : 'wait'; }
   var lastKey = 'init';
   Toolbox.on(function (s) {
     // Re-render only when a different file is opened / reconnected, not on every save tick.
-    var key = s.ready ? (s.connected && !s.needsReconnect ? 'g' + s.generation : 'none') : 'wait';
+    var key = fileKey(s);
     if (key !== lastKey) { lastKey = key; ui.sessionId = null; ui.tplDraft = null; render(); }
   });
-  Toolbox.ready.then(function () { lastKey = 'x'; render(); });
+  // Record the real key here (not a placeholder), or the first save after loading
+  // looks like a file change and closes whatever workout is open.
+  Toolbox.ready.then(function () { lastKey = fileKey(Toolbox.status()); render(); });
   render();
 
   setInterval(function () {

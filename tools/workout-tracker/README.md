@@ -14,6 +14,16 @@ build/build-library.mjs            node build/build-library.mjs <upstream exerci
 tests/core.test.js                 node --test tools/workout-tracker/tests/core.test.js
 ```
 
+## Logging weight
+- Weights are typed into a box. The **±** button beside it opens an "Adjust weight" sheet
+  with steps of 5 / 10 / 25 / 45 lb (2.5 / 5 / 10 / 20 kg).
+- By default an exercise has **one weight for all its sets**. "Different weight per set"
+  switches that exercise to a weight box on every set; "Same weight for all sets" switches
+  back (using set 1's weight).
+- Every set still stores its own `weightKg`, so history, CSV, merge and "Previous" are
+  unaffected. The entry only records `weightMode: 'shared' | 'perSet'`; entries without it
+  are shared when all their sets have the same weight (see `core.weightMode`).
+
 ## Differences from the requirements doc
 The spec assumed a standalone Svelte/IndexedDB PWA; as a Toolbox tool it instead:
 - stores data in the shared Toolbox data file (no IndexedDB, no per-tool service worker);

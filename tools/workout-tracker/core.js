@@ -5,6 +5,7 @@
  * Data shape (also the export-file format, see workout-tracker-requirements.md §5):
  *   { schemaVersion, exportedAt?, exercises[], templates[], sessions[], bodyweight[],
  *     settings{}, settingsUpdatedAt{}, lastBackupAt, deviceId }
+ * A session entry may also carry weightMode: 'shared' | 'perSet' (see weightMode()).
  */
 (function (root, factory) {
   if (typeof module === 'object' && module.exports) module.exports = factory();
@@ -21,8 +22,6 @@
     weekStart: 'mon',
     restSeconds: 90,
     theme: 'system',
-    incrementKg: 2.5,
-    incrementLb: 5,
     useLastValues: true
   };
 
@@ -65,6 +64,51 @@
     var v = parseFloat(String(text).replace(',', '.'));
     if (!isFinite(v) || v < 0) return null;
     return { weightKg: toKg(v, unit), enteredUnit: unit };
+  }
+
+  /** Steps offered by the "adjust weight" sheet, in the display unit. */
+  var WEIGHT_STEPS = { lb: [5, 10, 25, 45], kg: [2.5, 5, 10, 20] };
+
+  /** Add `delta` (in `unit`) to a canonical kg weight. Never below 0; rounded to ¼ of the unit. */
+  function stepWeight(kg, delta, unit) {
+    var cur = kg == null ? 0 : fromKg(kg, unit);
+    return toKg(Math.max(0, Math.round((cur + delta) * 4) / 4), unit);
+  }
+
+  /* ---------- one weight per exercise, or per set ---------- */
+  //
+  // Every set always stores its own weightKg, so history, CSV, merge and "previous
+  // performance" never need to know about modes. An entry may carry
+  // weightMode: 'shared' (one weight applied to every set) or 'perSet'. Without it,
+  // an entry is shared when all its sets have the same weight; that makes new
+  // exercises shared by default while older sessions with mixed weights stay per-set.
+
+  function sameKg(a, b) { return a == null || b == null ? a == b : Math.abs(a - b) < 1e-6; }
+
+  function weightMode(entry) {
+    if (entry.weightMode === 'shared' || entry.weightMode === 'perSet') return entry.weightMode;
+    var sets = entry.sets || [], first = sets.length ? sets[0].weightKg : null;
+    return sets.every(function (s) { return sameKg(s.weightKg, first); }) ? 'shared' : 'perSet';
+  }
+
+  /** The weight shown for a shared entry: its first set's weight. */
+  function sharedWeight(entry) {
+    var s = (entry.sets || [])[0];
+    return s && s.weightKg != null ? s.weightKg : null;
+  }
+
+  /** Put the same weight on every set of an entry. */
+  function setAllWeights(entry, weightKg, enteredUnit) {
+    (entry.sets || []).forEach(function (s) {
+      s.weightKg = weightKg;
+      s.enteredUnit = weightKg == null ? null : enteredUnit;
+    });
+  }
+
+  /** Do an entry's sets have more than one distinct weight? */
+  function hasMixedWeights(entry) {
+    var sets = entry.sets || [], first = sets.length ? sets[0].weightKg : null;
+    return !sets.every(function (s) { return sameKg(s.weightKg, first); });
   }
 
   /* ---------- data helpers ---------- */
@@ -266,7 +310,9 @@
     SCHEMA_VERSION: SCHEMA_VERSION, LB_TO_KG: LB_TO_KG, DEFAULT_SETTINGS: DEFAULT_SETTINGS,
     BACKUP_REMINDER_AFTER: BACKUP_REMINDER_AFTER, CSV_COLUMNS: CSV_COLUMNS,
     nowIso: nowIso, newId: newId, toKg: toKg, fromKg: fromKg, displayWeight: displayWeight,
-    parseWeight: parseWeight, emptyData: emptyData, migrate: migrate, validate: validate,
+    parseWeight: parseWeight, WEIGHT_STEPS: WEIGHT_STEPS, stepWeight: stepWeight,
+    weightMode: weightMode, sharedWeight: sharedWeight, setAllWeights: setAllWeights, hasMixedWeights: hasMixedWeights,
+    emptyData: emptyData, migrate: migrate, validate: validate,
     mergeCollection: mergeCollection, mergeData: mergeData, live: live, getSettings: getSettings,
     unbackedUpCount: unbackedUpCount, shouldShowBackupBanner: shouldShowBackupBanner,
     exerciseIndex: exerciseIndex, exerciseName: exerciseName, lastPerformance: lastPerformance,

@@ -24,6 +24,37 @@ test('volume is identical regardless of display unit', () => {
   assert.ok(Math.abs(C.volumeKg(s) - (C.toKg(135, 'lb') * 5 + 500)) < 1e-9);
 });
 
+test('weight mode: shared by default, per-set when weights differ, explicit mode wins', () => {
+  const kg = (lb) => C.toKg(lb, 'lb');
+  const fresh = { sets: [{ weightKg: null }, { weightKg: null }] };
+  assert.strictEqual(C.weightMode(fresh), 'shared');
+  assert.strictEqual(C.weightMode({ sets: [{ weightKg: kg(135) }, { weightKg: kg(135) }] }), 'shared');
+  const mixed = { sets: [{ weightKg: kg(135) }, { weightKg: kg(155) }] };
+  assert.strictEqual(C.weightMode(mixed), 'perSet');
+  assert.strictEqual(C.hasMixedWeights(mixed), true);
+  assert.strictEqual(C.weightMode({ ...mixed, weightMode: 'shared' }), 'shared');
+  assert.strictEqual(C.weightMode({ ...fresh, weightMode: 'perSet' }), 'perSet');
+  assert.strictEqual(C.weightMode({ sets: [] }), 'shared');
+});
+
+test('setAllWeights puts one weight on every set; clearing clears the unit too', () => {
+  const e = { sets: [{ weightKg: 10, enteredUnit: 'kg' }, { weightKg: null }, { weightKg: 50, enteredUnit: 'kg' }] };
+  C.setAllWeights(e, C.toKg(225, 'lb'), 'lb');
+  assert.ok(e.sets.every((s) => s.enteredUnit === 'lb' && C.displayWeight(s.weightKg, 'lb') === '225'));
+  assert.strictEqual(C.displayWeight(C.sharedWeight(e), 'lb'), '225');
+  C.setAllWeights(e, null, 'lb');
+  assert.ok(e.sets.every((s) => s.weightKg === null && s.enteredUnit === null));
+  assert.strictEqual(C.sharedWeight(e), null);
+});
+
+test('stepWeight adds plate steps in the display unit and never goes below zero', () => {
+  assert.deepStrictEqual(C.WEIGHT_STEPS.lb, [5, 10, 25, 45]);
+  assert.strictEqual(C.displayWeight(C.stepWeight(C.toKg(135, 'lb'), 45, 'lb'), 'lb'), '180');
+  assert.strictEqual(C.displayWeight(C.stepWeight(null, 25, 'lb'), 'lb'), '25');
+  assert.strictEqual(C.stepWeight(C.toKg(10, 'lb'), -45, 'lb'), 0);
+  assert.strictEqual(C.displayWeight(C.stepWeight(60, 2.5, 'kg'), 'kg'), '62.5');
+});
+
 test('uuidv7 ids are unique and time-sortable', () => {
   const a = C.newId('ses'); const b = C.newId('ses');
   assert.notStrictEqual(a, b); assert.match(a, /^ses_[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
