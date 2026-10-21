@@ -155,8 +155,19 @@
 
     .site-footer {
       padding: 32px 0 48px;
-      font: 12px var(--mono);
+      font: 12px/1.7 var(--mono);
       color: var(--ink-3);
+    }
+    .site-footer a { color: inherit; }
+    .link-btn {
+      appearance: none;
+      padding: 0;
+      border: 0;
+      background: none;
+      color: var(--accent);
+      font: inherit;
+      text-decoration: underline;
+      cursor: pointer;
     }
   </style>
 </head>
@@ -171,7 +182,7 @@
         <div id="account"></div>
       </div>
       <h1 class="headline">Small tools. Your data, in your file.</h1>
-      <p class="lede">Everything here runs in your browser. There’s no account and no server — what you save goes into one data file you keep wherever you like.</p>
+      <p class="lede">Everything here runs in your browser. There’s no account, and nothing you save goes to a server — it goes into one data file you keep wherever you like.</p>
     </div>
   </header>
 
@@ -212,7 +223,11 @@
   </main>
 
   <footer class="site-footer">
-    <div class="wrap">Runs entirely client-side · No data leaves your device</div>
+    <div class="wrap">
+      Runs entirely client-side · Your tool data never leaves your file ·
+      Anonymous page views counted with <a href="https://www.goatcounter.com" target="_blank" rel="noopener">GoatCounter</a>
+      (<span id="analytics-state"></span> <button type="button" class="link-btn" id="analytics-toggle"></button>)
+    </div>
   </footer>
 
   <script src="lib/toolbox.js"></script>
@@ -287,9 +302,19 @@
 
       Toolbox.on(render);
       render();
+
+      // Footer: show and change whether this browser's visits are counted.
+      var stateEl = document.getElementById('analytics-state');
+      var toggleEl = document.getElementById('analytics-toggle');
+      function renderAnalytics() {
+        var on = Toolbox.analyticsEnabled();
+        stateEl.textContent = on ? 'your visits are counted' : 'your visits are not counted';
+        toggleEl.textContent = on ? 'opt out' : 'opt back in';
+      }
+      toggleEl.addEventListener('click', function () { Toolbox.setAnalytics(!Toolbox.analyticsEnabled()); });
+      Toolbox.on(renderAnalytics);
+      renderAnalytics();
     })();
   </script>
-  <script data-goatcounter="https://aremi.goatcounter.com/count"
-    async src="//gc.zgo.at/count.js"></script>
 </body>
 </html>

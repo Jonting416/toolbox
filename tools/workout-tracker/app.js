@@ -558,7 +558,8 @@
       '<div class="wt-list-item"><div><strong>Dropbox</strong><div class="wt-small wt-muted">Same, through your own Dropbox.</div></div><button type="button" class="btn" disabled>Connect</button><span class="wt-chip soon">Coming Soon</span></div>' +
       '<p class="wt-small wt-muted">Until then, keep your Toolbox data file in a synced folder (iCloud Drive, Dropbox, OneDrive…) or move it between devices with export/import.</p></div>';
 
-    h += '<h2 class="wt-h">About your data</h2><div class="wt-card wt-small wt-muted">No accounts, no tracking, no server. Workouts are saved only to the Toolbox data file you opened. ' +
+    h += '<h2 class="wt-h">About your data</h2><div class="wt-card wt-small wt-muted">No accounts and no server. Workouts are saved only to the Toolbox data file you opened and are never sent anywhere. ' +
+      'The site counts anonymous page views with GoatCounter (no cookies); you can opt out from the Toolbox home page. ' +
       'Exercise library: <a href="' + esc(LIB.provenance.url || '#') + '" target="_blank" rel="noopener">free-exercise-db</a> (public domain), ' +
       LIB.exercises.length + ' exercises, commit ' + esc((LIB.provenance.commit || '').slice(0, 7)) + '.</div>';
     return h;

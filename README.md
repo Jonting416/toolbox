@@ -5,7 +5,7 @@ its own section of **one JSON data file** that the user keeps on their own devic
 
 ```
 index.html              Landing page (data file panel + tool grid)
-lib/toolbox.js          Data layer + shared data-file bar (used by every page)
+lib/toolbox.js          Data layer, shared data-file bar, page-view counting (used by every page)
 lib/toolbox.css         Shared styles (light/dark)
 tools/registry.js       The list of tools shown on the landing page
 tools/notes/            Example tool — copy it to start a new one
@@ -21,6 +21,30 @@ Ideas and tools that I think are useful, which are all served as static websites
 Upload the folder to any static host (GitHub Pages, Netlify, Cloudflare Pages, S3…).
 It also works opened straight from disk (`index.html`), though hosting over HTTPS
 is the most reliable for the "save automatically" behaviour.
+
+## Privacy and third-party services
+
+The only third-party service the site uses is **[GoatCounter](https://www.goatcounter.com)**,
+for anonymous page-view counts.
+
+| What | Where it goes | What is sent |
+| --- | --- | --- |
+| Your tool data (notes, workouts, …) | Nowhere. It stays in your own data file (and this browser's working copy) | Nothing |
+| Page views | `aremi.goatcounter.com` | Page path, referrer, browser and screen size, country (derived from IP, not stored). No cookies, no personal identifiers |
+
+- The counter is loaded once by `lib/toolbox.js` for every page, from `https://gc.zgo.at/count.js`.
+  Don't add the GoatCounter snippet to individual pages; new tools copied from
+  `tools/notes/` are counted automatically.
+- On a visitor's first page load, a notice explains this and offers **Don't count my
+  visits**. The landing-page footer shows whether visits are counted and lets the visitor
+  opt out or back in. Both choices are stored in that browser's `localStorage`
+  (`toolbox:analytics`, `toolbox:analytics-notice-seen`).
+- GoatCounter ignores `localhost` and pages opened from disk, so local testing isn't counted.
+- To change the counter, edit `GOATCOUNTER_ENDPOINT` in `lib/toolbox.js`. To turn counting
+  off entirely, remove the `startCounting()` call there.
+- The exercise library in `tools/workout-tracker/library/` is bundled with the site
+  ([free-exercise-db](https://github.com/yuhonas/free-exercise-db), public domain); nothing
+  else is fetched at runtime.
 
 ## How data is stored
 

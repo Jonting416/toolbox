@@ -249,6 +249,32 @@ a { color: inherit; }
   .account-chip { max-width: 180px; }
 }
 
+/* ---------- first-visit notice (page-view counting) ---------- */
+
+.notice-bar {
+  position: fixed;
+  left: 16px;
+  right: 16px;
+  bottom: 16px;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  gap: 12px 16px;
+  flex-wrap: wrap;
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 14px 16px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+.notice-text { flex: 1 1 320px; margin: 0; font-size: 14px; color: var(--ink-2); }
+.notice-text strong { color: var(--ink); }
+.notice-text a { color: var(--accent); }
+.notice-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.notice-actions .btn { min-height: 34px; font-size: 13px; }
+
 /* ---------- tool page shell ---------- */
 
 .tool-header {
