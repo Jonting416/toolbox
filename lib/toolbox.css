@@ -58,6 +58,22 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
+/* Never let a page scroll sideways. `clip` (unlike `hidden`) doesn't create a
+   scroll container, so sticky positioning keeps working. Scrollers that are meant
+   to scroll sideways (e.g. the workout tracker's tab bar) still can. */
+html, body { overflow-x: clip; }
+
+/* iPhone/iPad Safari zooms in when you tap a text field whose font is under 16px,
+   which leaves the page wider than the screen so it slides left and right. Keep
+   form fields at 16px on phones and touch screens. !important because tools set
+   smaller sizes in their own stylesheets, which load after this one. */
+@media (max-width: 720px), (pointer: coarse) {
+  input, textarea, select { font-size: 16px !important; }
+}
+
+/* File pickers have a fixed natural width; let them shrink to fit narrow screens. */
+input[type="file"] { max-width: 100%; }
+
 a { color: inherit; }
 
 .wrap {
