@@ -182,7 +182,7 @@
         <div id="account"></div>
       </div>
       <h1 class="headline">Small tools. Your data, in your file.</h1>
-      <p class="lede">Everything here runs in your browser. There’s no account, and nothing you save goes to a server — it goes into one data file you keep wherever you like.</p>
+      <p class="lede">Everything here runs in your browser. There’s no account, and nothing you save goes to this site — it goes into one data file you keep wherever you like: on your device, or in your own Google Drive.</p>
     </div>
   </header>
 
@@ -214,7 +214,7 @@
     <section class="section" aria-label="How it works">
       <div class="wrap">
         <ol class="how">
-          <li><strong>Create or open a data file</strong><span>One JSON file holds the data for every tool. Keep it in a synced folder to use it on other devices.</span></li>
+          <li><strong>Create or open a data file</strong><span>One JSON file holds the data for every tool. Keep it in Google Drive or a synced folder to use it on other devices.</span></li>
           <li><strong>Use any tool</strong><span>Each tool reads and writes its own section of the file. In Chrome and Edge, changes save to the file automatically.</span></li>
           <li><strong>Come back anytime</strong><span>Your browser remembers the file. Next visit, reconnect with one click and pick up where you left off.</span></li>
         </ol>
@@ -230,7 +230,12 @@
     </div>
   </footer>
 
+  <script src="lib/toolbox.config.js"></script>
   <script src="lib/toolbox.js"></script>
+  <script src="lib/providers/local.js"></script>
+  <script src="lib/providers/gdrive.js"></script>
+  <script src="lib/toolbox-ui.js"></script>
+  <script src="lib/analytics.js"></script>
   <script src="tools/registry.js"></script>
   <script>
     (function () {

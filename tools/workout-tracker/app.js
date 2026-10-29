@@ -130,7 +130,7 @@
     try { seen = localStorage.getItem('wt:noticeSeen') === '1'; } catch (e) { /* ignore */ }
     if (d && !seen) {
       html += '<div class="wt-banner info" role="note"><div class="wt-grow"><strong>Where your data lives.</strong> ' +
-        'Workouts are saved to the Toolbox data file you opened above — on your device, never on a server. ' +
+        'Workouts are saved to the Toolbox data file you opened above — on your device or in your own Google Drive, never on this site’s server. ' +
         'Clearing that file means starting empty, so export a JSON backup now and then.</div>' +
         '<button type="button" class="btn" data-act="dismiss-notice">Got it</button></div>';
     }

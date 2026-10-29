@@ -123,6 +123,8 @@ a { color: inherit; }
 .btn--primary:hover { background: var(--accent-hover); border-color: var(--accent-hover); }
 .btn--ghost { background: transparent; border-color: transparent; color: var(--ink-2); }
 .btn--ghost:hover { color: var(--ink); border-color: var(--line); }
+.btn--destructive { background: var(--danger); border-color: var(--danger); color: var(--accent-ink); }
+.btn--destructive:hover { background: color-mix(in srgb, var(--danger) 85%, var(--ink)); border-color: transparent; }
 
 /* ---------- data bar ---------- */
 
@@ -199,6 +201,52 @@ a { color: inherit; }
 @media (max-width: 560px) {
   .databar--panel .databar-actions { width: 100%; }
   .databar--panel .databar-actions .btn { flex: 1 1 auto; justify-content: center; }
+}
+
+/* ---------- storage selector (header, left of the account chip) ---------- */
+
+/* Keeps its full width; the file chip beside it is the one that shortens on phones. */
+.storage-picker { flex: none; display: inline-flex; align-items: center; gap: 8px; margin-left: auto; }
+.storage-picker + .account { margin-left: 0; }
+.storage-picker-label { font: 600 11px/1 var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3); }
+.storage-picker-field { position: relative; display: inline-flex; min-width: 0; }
+.storage-picker-field::after {
+  content: '';
+  position: absolute;
+  right: 13px;
+  top: 50%;
+  width: 6px;
+  height: 6px;
+  border-right: 1.5px solid var(--ink-2);
+  border-bottom: 1.5px solid var(--ink-2);
+  transform: translateY(-70%) rotate(45deg);
+  pointer-events: none;
+}
+.storage-select {
+  appearance: none;
+  height: 36px;
+  min-width: 0;
+  max-width: 180px;
+  padding: 0 32px 0 12px;
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--ink);
+  font: 500 13px/1 var(--font);
+  text-overflow: ellipsis;
+  cursor: pointer;
+  transition: border-color .15s;
+}
+.storage-select:hover:not(:disabled) { border-color: var(--ink-3); }
+.storage-select:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.storage-select:disabled { cursor: default; color: var(--ink-2); }
+.storage-picker-field:has(.storage-select:disabled)::after { opacity: .5; }
+@media (max-width: 560px) {
+  .storage-picker-label { display: none; }
+}
+/* Phones: the file name gives way (it's in the chip's menu) so the storage reads in full. */
+@media (max-width: 420px) {
+  .storage-picker + .account .account-name { display: none; }
 }
 
 /* ---------- account chip (open data file, shown in the header) ---------- */
