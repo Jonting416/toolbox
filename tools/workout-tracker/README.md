@@ -24,6 +24,23 @@ tests/core.test.js                 node --test tools/workout-tracker/tests/core.
   unaffected. The entry only records `weightMode: 'shared' | 'perSet'`; entries without it
   are shared when all their sets have the same weight (see `core.weightMode`).
 
+## Sets × reps schemes
+- Fixed list in `core.SET_SCHEMES`: 3×5, 5×5, 3×8, 4×8, 3×10, 3×12, 4×12, 5/3/1 (sets of 5, 3, 1 reps).
+- **Add exercise** has a "Start with" row (default *Last time*, i.e. the old behaviour); the choice sticks for the visit.
+- **Sets × reps ▾** on an exercise reshapes the sets you haven't checked off (`core.applyScheme`); checked-off sets and weights are kept.
+- Template entries can carry `scheme`; a workout started from the template gets those reps per set. Typing Sets/Reps by hand clears it.
+
+## Start and finish times
+- **Finish workout** asks for the finish time (Now, Last edit, or any date/time).
+- **Started** is editable on any workout, **Finished** on a finished one; finish must be after start.
+- Editing either sets `updatedAt` like any other edit, so `updatedAt` remains the last-edit stamp that merge uses to pick the newest version.
+
+## Importing / merging files
+Settings → *Import or merge files* takes several files at once, each either a JSON export or a whole Toolbox data file
+(`core.extractWorkoutData`). A preview lists what each file adds or updates (`core.mergeDiff`); bad files are skipped with a
+reason. Merging is per record by `updatedAt` and is order-independent (`core.mergeMany`). Useful when you logged into a new
+data file while away from your main one.
+
 ## Differences from the requirements doc
 The spec assumed a standalone Svelte/IndexedDB PWA; as a Toolbox tool it instead:
 - stores data in the shared Toolbox data file (no IndexedDB, no per-tool service worker);

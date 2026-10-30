@@ -306,7 +306,106 @@
     return rows.join('\r\n') + '\r\n';
   }
 
+  /* ---------- set schemes (3×10, 5×5, 5/3/1…) ---------- */
+
+  // Reps per set; the number of sets is reps.length.
+  var SET_SCHEMES = [
+    { id: '3x5', label: '3×5', reps: [5, 5, 5] },
+    { id: '5x5', label: '5×5', reps: [5, 5, 5, 5, 5] },
+    { id: '3x8', label: '3×8', reps: [8, 8, 8] },
+    { id: '4x8', label: '4×8', reps: [8, 8, 8, 8] },
+    { id: '3x10', label: '3×10', reps: [10, 10, 10] },
+    { id: '3x12', label: '3×12', reps: [12, 12, 12] },
+    { id: '4x12', label: '4×12', reps: [12, 12, 12, 12] },
+    { id: '531', label: '5/3/1', reps: [5, 3, 1] }
+  ];
+
+  function schemeById(id) { return SET_SCHEMES.filter(function (s) { return s.id === id; })[0] || null; }
+
+  /**
+   * Reshape `sets` to `scheme`: checked-off sets are kept as they are; every other
+   * position gets the scheme's reps and the weight of the set it replaces (or the
+   * last set's weight). Extra unchecked sets are dropped.
+   */
+  function applyScheme(sets, scheme) {
+    sets = sets || [];
+    var out = [], lastW = null;
+    sets.forEach(function (st) { if (st.weightKg != null) lastW = st; });
+    var n = Math.max(scheme.reps.length, sets.length);
+    for (var k = 0; k < n; k++) {
+      var cur = sets[k];
+      if (cur && cur.completed) { out.push(cur); continue; }
+      if (k >= scheme.reps.length) continue;
+      var w = cur && cur.weightKg != null ? cur : lastW;
+      out.push({ type: (cur && cur.type) || 'working', reps: scheme.reps[k],
+        weightKg: w ? w.weightKg : null, enteredUnit: w ? w.enteredUnit : null, completed: false });
+    }
+    return out;
+  }
+
+  /* ---------- importing several files ---------- */
+
+  /** The workout data in a parsed file: a workout export, or a whole Toolbox data file. */
+  function extractWorkoutData(obj) {
+    if (obj && typeof obj === 'object' && obj.format === 'toolbox-data') {
+      var t = obj.tools && obj.tools['workout-tracker'];
+      if (!t) throw new Error('This Toolbox data file has no workout tracker data in it.');
+      return t;
+    }
+    return obj;
+  }
+
+  /** How many records `incoming` would add to / change in `local`, per collection. */
+  function mergeDiff(local, incoming) {
+    local = migrate(local); incoming = migrate(incoming);
+    var out = {};
+    ['exercises', 'templates', 'sessions', 'bodyweight'].forEach(function (k) {
+      var map = {}, added = 0, updated = 0;
+      local[k].forEach(function (r) { map[r.id] = r; });
+      incoming[k].forEach(function (r) {
+        var cur = map[r.id];
+        if (!cur) { if (!r.deleted) added++; } else if (wins(r, cur)) updated++;
+      });
+      out[k] = { added: added, updated: updated };
+    });
+    return out;
+  }
+
+  /** Merge any number of data docs into `local`. Order doesn't matter (mergeData is commutative). */
+  function mergeMany(local, list) {
+    return list.reduce(function (acc, x) { return mergeData(acc, x); }, local);
+  }
+
+  /* ---------- editable start / finish times ---------- */
+
+  function pad2(n) { return (n < 10 ? '0' : '') + n; }
+
+  /** ISO → value for <input type="datetime-local"> (local time, minutes). */
+  function toLocalInput(iso) {
+    if (!iso) return '';
+    var d = new Date(iso);
+    return d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate()) + 'T' + pad2(d.getHours()) + ':' + pad2(d.getMinutes());
+  }
+
+  /** <input type="datetime-local"> value → ISO, or null if empty/invalid. */
+  function fromLocalInput(v) {
+    var m = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/.exec(String(v || ''));
+    if (!m) return null;
+    var d = new Date(+m[1], +m[2] - 1, +m[3], +m[4], +m[5]);
+    return isNaN(d) ? null : d.toISOString();
+  }
+
+  /** '' if the start/finish pair is fine, else a message. `endIso` may be null (still going). */
+  function checkTimes(startIso, endIso) {
+    if (!startIso) return 'Enter a start time.';
+    if (endIso && endIso <= startIso) return 'The finish time has to be after the start time.';
+    return '';
+  }
+
   return {
+    SET_SCHEMES: SET_SCHEMES, schemeById: schemeById, applyScheme: applyScheme,
+    extractWorkoutData: extractWorkoutData, mergeDiff: mergeDiff, mergeMany: mergeMany,
+    toLocalInput: toLocalInput, fromLocalInput: fromLocalInput, checkTimes: checkTimes,
     SCHEMA_VERSION: SCHEMA_VERSION, LB_TO_KG: LB_TO_KG, DEFAULT_SETTINGS: DEFAULT_SETTINGS,
     BACKUP_REMINDER_AFTER: BACKUP_REMINDER_AFTER, CSV_COLUMNS: CSV_COLUMNS,
     nowIso: nowIso, newId: newId, toKg: toKg, fromKg: fromKg, displayWeight: displayWeight,

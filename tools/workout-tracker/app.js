@@ -36,7 +36,8 @@
     exLimit: 60,
     openSet: null,         // "entryIdx:setIdx" with detail row open
     backupDismissed: false, // FR-19a: in memory only, so it returns on next visit
-    wakeLock: null
+    wakeLock: null,
+    pickScheme: ''         // "Start with" choice in the add-exercise picker ('' = last time)
   };
 
   var $ = function (id) { return document.getElementById(id); };
@@ -101,6 +102,7 @@
     else if (ui.tab === 'settings') app.innerHTML = settingsView(d);
     else app.innerHTML = logView(d);
     footEl.textContent = 'Last backup (JSON export): ' + (d.lastBackupAt ? new Date(d.lastBackupAt).toLocaleString() : 'never');
+    fitTextareas(app);
     syncWakeLock(!!sess);
   }
 
@@ -215,6 +217,8 @@
       st.completed = false;
       sets.push(st);
     }
+    var scheme = tplEntry && C.schemeById(tplEntry.scheme);
+    if (scheme) sets = C.applyScheme(sets, scheme);
     return {
       exerciseId: exerciseId, exerciseName: ex ? ex.name : exerciseId, sets: sets,
       supersetGroup: tplEntry && tplEntry.supersetGroup != null ? tplEntry.supersetGroup : null,
@@ -242,12 +246,17 @@
       '<span class="wt-small wt-muted" id="elapsed">' + (active ? 'Started ' + fmtTime(s.startedAt) + ' · ' + fmtDuration(s.startedAt, new Date()) : fmtDate(s.startedAt) + ' · ' + fmtDuration(s.startedAt, s.endedAt)) + '</span></div>';
     h += '<div class="wt-field"><label class="wt-label" for="s-name">Workout name</label>' +
       '<input class="wt-in" id="s-name" data-f="s-name" value="' + esc(s.name || '') + '" placeholder="Workout"></div>';
+    h += '<div class="wt-fields wt-times"><div class="wt-field"><label class="wt-label" for="s-start">Started</label>' +
+      '<input class="wt-in" type="datetime-local" id="s-start" data-f="s-start" value="' + C.toLocalInput(s.startedAt) + '"></div>' +
+      (active ? '' : '<div class="wt-field"><label class="wt-label" for="s-end">Finished</label>' +
+        '<input class="wt-in" type="datetime-local" id="s-end" data-f="s-end" value="' + C.toLocalInput(s.endedAt) + '"></div>') +
+      '</div><p class="wt-small wt-err" id="time-msg" role="status"></p>';
     h += s.entries.map(function (e, i) { return entryCard(d, s, e, i, unit, idx); }).join('');
     h += '<div class="wt-row" style="margin-top:12px"><button type="button" class="btn" data-act="add-exercise">+ Add exercise</button>' +
       (active && 'wakeLock' in navigator ? '<label class="wt-small wt-muted"><input type="checkbox" data-f="wake"' + (ui.wakeWanted ? ' checked' : '') + '> Keep screen on</label>' : '') + '</div>';
     h += '<div class="wt-field"><label class="wt-label" for="s-notes">Notes</label><textarea class="wt-ta" id="s-notes" data-f="s-notes">' + esc(s.notes || '') + '</textarea></div>';
     if (!active) {
-      h += '<div class="wt-row" style="margin-top:12px"><span class="wt-small wt-muted">Finished ' + fmtTime(s.endedAt) + ' · edits are saved automatically.</span></div>';
+      h += '<div class="wt-row" style="margin-top:12px"><span class="wt-small wt-muted">Last edited ' + new Date(s.updatedAt).toLocaleString() + ' · edits are saved automatically.</span></div>';
       h += '<div class="wt-row" style="margin-top:12px"><button type="button" class="btn btn--danger" data-act="delete-session">Delete session</button></div>';
     } else {
       h += '<div class="wt-row" style="margin-top:16px"><button type="button" class="btn btn--primary btn--big" data-act="finish-session">Finish workout</button>' +
@@ -297,7 +306,8 @@
           '<div class="wide"><button type="button" class="btn btn--sm btn--danger" data-act="remove-set">Remove set</button></div></div>';
       }
     });
-    h += '</div><div class="wt-entry-foot"><button type="button" class="btn btn--sm" data-act="add-set">+ Add set</button>' +
+    h += '</div><div class="wt-entry-foot"><div class="wt-row"><button type="button" class="btn btn--sm" data-act="add-set">+ Add set</button>' +
+      '<button type="button" class="btn btn--sm" data-act="scheme-sheet">Sets × reps ▾</button></div>' +
       '<button type="button" class="wt-switch" role="switch" aria-checked="' + !shared + '" data-act="weight-mode">' +
         '<span class="wt-switch-label">Different weight per set</span>' +
         '<span class="wt-switch-track" aria-hidden="true"><span class="wt-switch-thumb"></span></span></button>' +
@@ -375,17 +385,68 @@
     });
   }
 
+  /** "Finish workout": pick the finish time (now, the last edit, or any time), then close the session. */
   function finishSession() {
     var d = load(), s = byId(d.sessions, ui.sessionId);
     var open = 0;
     s.entries.forEach(function (e) { open += (e.sets || []).filter(function (x) { return !x.completed; }).length; });
-    if (open && !confirm(open + (open === 1 ? ' set isn’t' : ' sets aren’t') + ' checked off. Finish anyway? Unchecked sets will be removed.')) return;
+    openModal('<h3 class="wt-h">Finish workout</h3>' +
+      '<div class="wt-field"><label class="wt-label" for="fin-at">Finished at</label>' +
+      '<input class="wt-in" type="datetime-local" id="fin-at" value="' + C.toLocalInput(C.nowIso()) + '"></div>' +
+      '<div class="wt-row" style="margin-top:8px"><button type="button" class="btn btn--sm" data-act="fin-now">Now</button>' +
+      '<button type="button" class="btn btn--sm" data-act="fin-last" data-at="' + esc(C.toLocalInput(s.updatedAt)) + '">Last edit (' + fmtTime(s.updatedAt) + ')</button></div>' +
+      (open ? '<p class="wt-small wt-muted">' + open + (open === 1 ? ' set isn’t' : ' sets aren’t') + ' checked off and will be removed.</p>' : '') +
+      '<p class="wt-small wt-err" id="fin-msg" role="status"></p>' +
+      '<div class="wt-row" style="margin-top:12px"><button type="button" class="btn btn--primary" data-act="fin-confirm">Finish</button>' +
+      '<button type="button" class="btn" data-act="close-modal">Cancel</button></div>');
+  }
+
+  function confirmFinish() {
+    var d = load(), s = byId(d.sessions, ui.sessionId);
+    var end = C.fromLocalInput($('fin-at').value), err = end ? C.checkTimes(s.startedAt, end) : 'Enter a finish time.';
+    if (err) { $('fin-msg').textContent = err; return; }
     mutSession(function (s) {
       s.entries.forEach(function (e) { e.sets = (e.sets || []).filter(function (x) { return x.completed; }); });
       s.entries = s.entries.filter(function (e) { return e.sets.length; });
-      if (!s.entries.length) { s.deleted = true; } else { s.endedAt = C.nowIso(); }
+      if (!s.entries.length) { s.deleted = true; } else { s.endedAt = end; }
     });
-    ui.sessionId = null; ui.tab = 'history'; render();
+    closeModal(); ui.sessionId = null; ui.tab = 'history'; render();
+  }
+
+  /** Edit Started / Finished on a session. updatedAt (the last-edit stamp merge uses) is set by mutSession as usual. */
+  function setSessionTime(el, key) {
+    var d = load(), s = byId(d.sessions, ui.sessionId), iso = C.fromLocalInput(el.value);
+    var start = key === 'startedAt' ? iso : s.startedAt, end = key === 'endedAt' ? iso : s.endedAt;
+    var err = iso ? C.checkTimes(start, end) : 'Enter a ' + (key === 'startedAt' ? 'start' : 'finish') + ' time.';
+    $('time-msg').textContent = err;
+    if (err) { el.value = C.toLocalInput(s[key]); return; }
+    mutSession(function (s) { s[key] = iso; });
+    var e = $('elapsed');
+    if (e) e.textContent = s.endedAt ? fmtDate(start) + ' · ' + fmtDuration(start, end) : 'Started ' + fmtTime(start) + ' · ' + fmtDuration(start, new Date());
+  }
+
+  /* ---------- sets × reps schemes ---------- */
+
+  /** Buttons for each scheme. `cur` is highlighted; `extra` is [[id, label]] shown first. */
+  function schemeChips(act, cur, extra) {
+    return '<div class="wt-schemes" role="group" aria-label="Sets × reps">' + (extra || []).concat(C.SET_SCHEMES.map(function (x) { return [x.id, x.label]; }))
+      .map(function (x) {
+        return '<button type="button" class="wt-scheme" data-act="' + act + '" data-scheme="' + x[0] + '" aria-pressed="' + (cur === x[0]) + '">' + esc(x[1]) + '</button>';
+      }).join('') + '</div>';
+  }
+
+  function openSchemeSheet(i) {
+    var e = byId(load().sessions, ui.sessionId).entries[i];
+    openModal('<div class="wt-row between"><h3 class="wt-h">Sets × reps</h3><button type="button" class="btn btn--ghost" data-act="close-modal">Cancel</button></div>' +
+      '<p class="wt-small wt-muted">' + esc(e.exerciseName || '') + ' — replaces the sets you haven’t checked off. Weights are kept.</p>' +
+      schemeChips('apply-scheme', null) + '<input type="hidden" id="scheme-i" value="' + i + '">');
+  }
+
+  function applySchemeToEntry(i, id) {
+    var scheme = C.schemeById(id);
+    if (!scheme) return;
+    mutSession(function (s) { var e = s.entries[i]; e.sets = C.applyScheme(e.sets, scheme); });
+    ui.openSet = null; closeModal(); render();
   }
 
   /* ---------- History ---------- */
@@ -560,6 +621,7 @@
         '<button type="button" class="btn btn--ghost btn--sm" data-act="t-move" data-dir="-1"' + (i === 0 ? ' disabled' : '') + ' aria-label="Move up">↑</button>' +
         '<button type="button" class="btn btn--ghost btn--sm" data-act="t-move" data-dir="1"' + (i === t.entries.length - 1 ? ' disabled' : '') + ' aria-label="Move down">↓</button>' +
         '<button type="button" class="btn btn--ghost btn--sm btn--danger" data-act="t-remove" aria-label="Remove">✕</button></div></div>' +
+        schemeChips('t-scheme', e.scheme || null) +
         '<div class="wt-tpl-fields">' +
         tplField('Sets', 't-sets', e.targetSets) + tplField('Reps min', 't-rmin', tr.min) + tplField('Reps max', 't-rmax', tr.max) +
         tplField('Weight (' + unit + ')', 't-weight', e.targetWeightKg == null ? '' : C.displayWeight(e.targetWeightKg, unit)) +
@@ -622,8 +684,10 @@
       '<button type="button" class="btn btn--primary" data-act="export-json">Export JSON backup</button>' +
       '<button type="button" class="btn" data-act="export-csv">Export CSV (one row per set)</button></div>' +
       '<p class="wt-small wt-muted">Last JSON backup: ' + (d.lastBackupAt ? new Date(d.lastBackupAt).toLocaleString() : 'never') + '. ' + C.unbackedUpCount(d) + ' finished sessions not yet backed up.</p>' +
-      '<hr style="border:0;border-top:1px solid var(--line);margin:14px 0"><div class="wt-field"><label class="wt-label" for="imp">Import JSON file</label>' +
-      '<input id="imp" type="file" accept=".json,application/json" data-f="import-file"></div>' +
+      '<hr style="border:0;border-top:1px solid var(--line);margin:14px 0"><div class="wt-field"><label class="wt-label" for="imp">Import or merge files</label>' +
+      '<input id="imp" type="file" accept=".json,application/json" multiple data-f="import-file"></div>' +
+      '<p class="wt-small wt-muted">Pick one or more JSON exports or Toolbox data files. Away from your main data file? Create a new one and keep logging; ' +
+      'later, open your main file and pick the other file(s) here to merge them in. Nothing is lost, and where the same thing was edited in both, the newer edit wins.</p>' +
       '<div class="wt-row" style="margin-top:8px"><label class="wt-small"><input type="radio" name="impmode" value="merge" checked> Merge with current data (recommended)</label>' +
       '<label class="wt-small"><input type="radio" name="impmode" value="replace"> Replace current data</label></div>' +
       '<p class="wt-small wt-muted" id="imp-msg" role="status"></p></div>';
@@ -658,41 +722,85 @@
     ui.backupDismissed = false; render();
   }
 
-  function importFile(file) {
-    var msg = $('imp-msg');
+  function plural(n, word) { return n + ' ' + word + (n === 1 ? '' : 's'); }
+
+  function readText(file) {
+    return new Promise(function (resolve, reject) {
+      var r = new FileReader();
+      r.onload = function () { resolve(String(r.result)); };
+      r.onerror = function () { reject(new Error('Couldn’t read that file.')); };
+      r.readAsText(file);
+    });
+  }
+
+  /** Parse one picked file: a workout export or a whole Toolbox data file → { name, data } or { name, error }. */
+  function parseImport(file) {
+    return readText(file).then(function (text) {
+      var data = C.extractWorkoutData(JSON.parse(text));
+      var errs = C.validate(data);
+      if (errs.length) throw new Error('Not a valid workout file: ' + errs.join(' '));
+      return { name: file.name, data: C.migrate(data) };
+    }).catch(function (e) {
+      return { name: file.name, error: e instanceof SyntaxError ? 'That file isn’t valid JSON.' : (e.message || String(e)) };
+    });
+  }
+
+  /** Import one or more files: show what each would add, then merge them all (or replace with them). */
+  function importFiles(files) {
     var mode = (document.querySelector('input[name="impmode"]:checked') || {}).value || 'merge';
-    var reader = new FileReader();
-    reader.onerror = function () { msg.textContent = 'Couldn’t read that file.'; };
-    reader.onload = function () {
-      try {
-        var data = JSON.parse(String(reader.result));
-        var errs = C.validate(data);
-        if (errs.length) throw new Error('Not a valid workout export: ' + errs.join(' '));
-        var incoming = C.migrate(data);
-        if (mode === 'replace' && !confirm('Replace ALL current workout data with this file? This can’t be undone.')) return;
-        commit(function (d) {
-          var merged = mode === 'replace'
-            ? Object.assign({}, incoming, { lastBackupAt: new Date().toISOString() })
-            : C.mergeData(d, incoming);
-          Object.keys(d).forEach(function (k) { delete d[k]; });
-          Object.assign(d, merged);
-        });
-        render();
-        var m2 = $('imp-msg');
-        if (m2) m2.textContent = (mode === 'replace' ? 'Replaced' : 'Merged') + ' ' + incoming.sessions.length + ' sessions, ' + incoming.templates.length + ' templates, ' + incoming.exercises.length + ' custom exercises.';
-      } catch (e) {
-        msg.textContent = e.message || String(e);
-      }
-    };
-    reader.readAsText(file);
+    Promise.all(files.map(parseImport)).then(function (results) {
+      var ok = results.filter(function (r) { return r.data; }), cur = load();
+      var rows = results.map(function (r) {
+        if (r.error) return '<div class="wt-list-item"><div><strong>' + esc(r.name) + '</strong><div class="wt-small wt-err">Skipped: ' + esc(r.error) + '</div></div></div>';
+        var df = C.mergeDiff(cur, r.data);
+        var part = function (k, label) {
+          var x = df[k];
+          return x.added || x.updated ? label + ' ' + x.added + ' new' + (x.updated ? ', ' + x.updated + ' updated' : '') : null;
+        };
+        var bits = [part('sessions', 'Sessions'), part('templates', 'Templates'), part('exercises', 'Custom exercises'), part('bodyweight', 'Bodyweight')].filter(Boolean);
+        return '<div class="wt-list-item"><div><strong>' + esc(r.name) + '</strong><div class="wt-small wt-muted">' +
+          plural(r.data.sessions.length, 'session') + ' · ' + plural(r.data.templates.length, 'template') + ' · ' + plural(r.data.exercises.length, 'custom exercise') + '<br>' +
+          (mode === 'replace' ? '' : (bits.length ? esc(bits.join(' · ')) : 'Nothing new — everything here is already in your data.')) + '</div></div></div>';
+      }).join('');
+      var n = ok.length;
+      openModal('<h3 class="wt-h">' + (mode === 'replace' ? 'Replace with' : 'Merge') + ' ' + results.length + (results.length === 1 ? ' file' : ' files') + '</h3>' +
+        '<div class="wt-card" style="margin-top:12px">' + rows + '</div>' +
+        '<p class="wt-small wt-muted">' + (mode === 'replace'
+          ? 'All current workout data will be replaced by ' + (n === 1 ? 'this file' : 'these files combined') + '. This can’t be undone.'
+          : 'Where the same item was changed in more than one place, the most recent edit wins. Deletes carry over.') + '</p>' +
+        '<div class="wt-row" style="margin-top:12px">' +
+        (n ? '<button type="button" class="btn btn--primary" data-act="imp-confirm">' + (mode === 'replace' ? 'Replace' : 'Merge') + ' ' + n + (n === 1 ? ' file' : ' files') + '</button>' : '') +
+        '<button type="button" class="btn" data-act="close-modal">Cancel</button></div>');
+      ui.pendingImport = { mode: mode, list: ok.map(function (r) { return r.data; }) };
+    });
+  }
+
+  function confirmImport() {
+    var p = ui.pendingImport;
+    if (!p) return;
+    ui.pendingImport = null;
+    var n = { sessions: 0, templates: 0, exercises: 0 };
+    p.list.forEach(function (x) { n.sessions += x.sessions.length; n.templates += x.templates.length; n.exercises += x.exercises.length; });
+    commit(function (d) {
+      var merged = p.mode === 'replace'
+        ? Object.assign(C.mergeMany(C.emptyData(DEVICE), p.list), { lastBackupAt: new Date().toISOString() })
+        : C.mergeMany(d, p.list);
+      Object.keys(d).forEach(function (k) { delete d[k]; });
+      Object.assign(d, merged);
+    });
+    closeModal(); render();
+    var m = $('imp-msg');
+    if (m) m.textContent = (p.mode === 'replace' ? 'Replaced with ' : 'Merged ') + p.list.length + (p.list.length === 1 ? ' file: ' : ' files: ') +
+      n.sessions + ' sessions, ' + n.templates + ' templates, ' + n.exercises + ' custom exercises.';
   }
 
   /* ---------- modal ---------- */
 
   var modalRefresh = null;
-  function openModal(html) {
-    modalEl.innerHTML = '<div class="wt-modal-box" role="dialog" aria-modal="true">' + html + '</div>';
+  function openModal(html, cls) {
+    modalEl.innerHTML = '<div class="wt-modal-box' + (cls ? ' ' + cls : '') + '" role="dialog" aria-modal="true">' + html + '</div>';
     modalEl.hidden = false;
+    fitTextareas(modalEl);
     var f = modalEl.querySelector('input:not([type=hidden]), textarea');
     if (f) f.focus();
   }
@@ -702,14 +810,16 @@
     if (r && r.onClose) r.onClose();
   }
 
-  function openPicker(onPick) {
+  /** Exercise picker. With `withScheme`, a "Start with" row picks the sets × reps the new exercise gets. */
+  function openPicker(onPick, withScheme) {
     var d = load();
     var filter = { q: '', muscle: '', equipment: '', source: '' }, limit = 50;
     function body() {
       modalEl.querySelector('#pick-list').innerHTML = exerciseRows(d, filter, limit, 'pick-exercise');
     }
-    openModal('<div class="wt-row between"><h3 class="wt-h">Add exercise</h3><button type="button" class="btn btn--ghost" data-act="close-modal">Cancel</button></div>' +
-      '<div style="margin-top:10px">' + filterBar(d, filter, true) + '</div><div id="pick-list" style="margin-top:12px"></div>');
+    openModal('<div class="wt-pick-head"><div class="wt-row between"><h3 class="wt-h">Add exercise</h3><button type="button" class="btn btn--ghost" data-act="close-modal">Cancel</button></div>' +
+      (withScheme ? '<div class="wt-field"><span class="wt-label">Start with</span><div id="pick-schemes">' + schemeChips('pick-scheme', ui.pickScheme, [['', 'Last time']]) + '</div></div>' : '') +
+      '<div style="margin-top:10px">' + filterBar(d, filter, true) + '</div></div><div id="pick-list" class="wt-pick-list"></div>', 'wt-modal-box--pick');
     body();
     modalRefresh = {
       onPick: onPick,
@@ -764,15 +874,27 @@
       case 'open-session': ui.sessionId = id; ui.openSet = null; render(); window.scrollTo(0, 0); break;
       case 'close-session': ui.sessionId = null; ui.openSet = null; render(); break;
       case 'finish-session': finishSession(); break;
+      case 'fin-now': $('fin-at').value = C.toLocalInput(C.nowIso()); break;
+      case 'fin-last': $('fin-at').value = el.dataset.at; break;
+      case 'fin-confirm': confirmFinish(); break;
+      case 'scheme-sheet': openSchemeSheet(cx.i); break;
+      case 'apply-scheme': applySchemeToEntry(+$('scheme-i').value, el.dataset.scheme); break;
+      case 'pick-scheme':
+        ui.pickScheme = el.dataset.scheme;
+        $('pick-schemes').innerHTML = schemeChips('pick-scheme', ui.pickScheme, [['', 'Last time']]); break;
       case 'delete-session':
         if (confirm('Delete this session? This can’t be undone.')) { mutSession(function (s) { s.deleted = true; }); ui.sessionId = null; render(); }
         break;
 
       case 'add-exercise':
         openPicker(function (exId) {
-          mutSession(function (s, dd) { s.entries.push(makeEntry(dd, exId, null)); });
+          mutSession(function (s, dd) {
+            var en = makeEntry(dd, exId, null), scheme = C.schemeById(ui.pickScheme);
+            if (scheme) en.sets = C.applyScheme(en.sets, scheme);
+            s.entries.push(en);
+          });
           closeModal(); render();
-        });
+        }, true);
         break;
       case 'move-entry':
         mutSession(function (s) { moveItem(s.entries, cx.i, +el.dataset.dir); }); render(); break;
@@ -810,6 +932,7 @@
       case 'more-ex': ui.exLimit += 60; render(); break;
       case 'pick-exercise': if (modalRefresh) modalRefresh.onPick(id); break;
       case 'close-modal': closeModal(); break;
+      case 'imp-confirm': confirmImport(); break;
 
       case 'new-template': ui.tplDraft = blankTemplate(); render(); break;
       case 'edit-template': d = load(); ui.tplDraft = JSON.parse(JSON.stringify(byId(d.templates, id))); render(); break;
@@ -831,6 +954,12 @@
           closeModal(); render();
         });
         break;
+      case 't-scheme': {
+        var sc = C.schemeById(el.dataset.scheme), te = ui.tplDraft.entries[cx.i];
+        te.scheme = sc.id; te.targetSets = sc.reps.length;
+        te.targetReps = { min: Math.min.apply(null, sc.reps), max: Math.max.apply(null, sc.reps) };
+        render(); break;
+      }
       case 't-move': moveItem(ui.tplDraft.entries, cx.i, +el.dataset.dir); render(); break;
       case 't-remove': ui.tplDraft.entries.splice(cx.i, 1); render(); break;
       case 't-cancel': ui.tplDraft = null; render(); break;
@@ -874,6 +1003,8 @@
     switch (f) {
       case 's-name': mutSession(function (s) { s.name = el.value.trim(); }); break;
       case 's-notes': mutSession(function (s) { s.notes = el.value; }); break;
+      case 's-start': setSessionTime(el, 'startedAt'); break;
+      case 's-end': setSessionTime(el, 'endedAt'); break;
       case 'wake': ui.wakeWanted = el.checked; syncWakeLock(true); break;
       case 'set-weight':
         unit = unitOf(load());
@@ -904,6 +1035,7 @@
       case 't-notes': ui.tplDraft.notes = el.value; break;
       case 't-sets': case 't-rmin': case 't-rmax': case 't-weight': case 't-rest': case 't-ss': {
         var e = ui.tplDraft.entries[cx.i];
+        if (f === 't-sets' || f === 't-rmin' || f === 't-rmax') delete e.scheme; // typed by hand: no longer a scheme
         if (f === 't-sets') e.targetSets = numOrNull(el.value, true);
         else if (f === 't-rmin') e.targetReps = Object.assign({}, e.targetReps, { min: numOrNull(el.value, true) });
         else if (f === 't-rmax') e.targetReps = Object.assign({}, e.targetReps, { max: numOrNull(el.value, true) });
@@ -920,7 +1052,7 @@
         render(); break;
       }
       case 'setting-bool': commit(function (d) { setSetting(d, el.dataset.key, el.checked); }); render(); break;
-      case 'import-file': if (el.files[0]) importFile(el.files[0]); el.value = ''; break;
+      case 'import-file': { var picked = Array.prototype.slice.call(el.files); el.value = ''; if (picked.length) importFiles(picked); break; }
     }
   });
 
@@ -934,8 +1066,16 @@
     else { ui.exLimit = 60; render(); }
   }
 
+  /** Text areas grow with their text (up to a cap set in CSS), starting from a roomy minimum. */
+  function fitTextarea(el) {
+    el.style.height = 'auto';
+    el.style.height = el.scrollHeight + 2 + 'px';
+  }
+  function fitTextareas(root) { Array.prototype.forEach.call(root.querySelectorAll('textarea.wt-ta'), fitTextarea); }
+
   document.addEventListener('input', function (ev) {
     var el = ev.target;
+    if (el.matches && el.matches('textarea.wt-ta')) fitTextarea(el);
     if (el.dataset && el.dataset.live === 'ex-q') {
       if (modalRefresh) { modalRefresh.setFilter('q', el.value); return; }
       ui.exFilter.q = el.value; ui.exLimit = 60;
