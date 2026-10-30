@@ -127,3 +127,58 @@ test('seed library: unique stable ids, provenance recorded', () => {
   assert.ok(lib.provenance.commit && lib.provenance.url);
   assert.ok(lib.exercises.every((e) => e.source === 'standard' && e.trackingType));
 });
+
+test('set schemes: 5/3/1 is three sets of 5, 3, 1; list is fixed', () => {
+  assert.deepStrictEqual(C.SET_SCHEMES.map((s) => s.label), ['3×5', '5×5', '3×8', '4×8', '3×10', '3×12', '4×12', '5/3/1']);
+  const sets = C.applyScheme([], C.schemeById('531'));
+  assert.deepStrictEqual(sets.map((s) => s.reps), [5, 3, 1]);
+  assert.ok(sets.every((s) => !s.completed && s.weightKg == null));
+});
+
+test('applyScheme keeps checked-off sets and weights, drops extra unchecked sets', () => {
+  const w = C.toKg(135, 'lb');
+  const sets = [
+    { type: 'working', reps: 6, weightKg: w, enteredUnit: 'lb', completed: true },
+    { type: 'working', reps: 6, weightKg: w, enteredUnit: 'lb', completed: false },
+    { type: 'working', reps: 6, weightKg: null, enteredUnit: null, completed: false },
+    { type: 'working', reps: 6, weightKg: null, enteredUnit: null, completed: false }
+  ];
+  const out = C.applyScheme(sets, C.schemeById('3x10'));
+  assert.strictEqual(out.length, 3);
+  assert.strictEqual(out[0], sets[0]);                       // checked-off set untouched
+  assert.deepStrictEqual(out.map((s) => s.reps), [6, 10, 10]);
+  assert.ok(out.every((s) => s.weightKg === w));            // blank weights take the last known weight
+  // more checked-off sets than the scheme has: all are kept
+  const done = [1, 2, 3, 4].map(() => ({ reps: 5, weightKg: 100, completed: true }));
+  assert.strictEqual(C.applyScheme(done, C.schemeById('3x5')).length, 4);
+});
+
+test('extractWorkoutData unwraps a Toolbox data file', () => {
+  const d = C.emptyData(); d.sessions.push(session());
+  assert.strictEqual(C.extractWorkoutData({ format: 'toolbox-data', version: 1, tools: { 'workout-tracker': d } }), d);
+  assert.strictEqual(C.extractWorkoutData(d), d);
+  assert.throws(() => C.extractWorkoutData({ format: 'toolbox-data', version: 1, tools: {} }), /no workout tracker data/);
+});
+
+test('mergeMany: several files give the same result in any order; mergeDiff counts new/updated', () => {
+  const base = C.emptyData(), a = C.emptyData(), b = C.emptyData();
+  const s1 = session({ id: 'ses_1' }), s2 = session({ id: 'ses_2' }), s3 = session({ id: 'ses_3' });
+  base.sessions.push(s1);
+  a.sessions.push(Object.assign({}, s1, { name: 'edited', updatedAt: '2026-10-02T00:00:00Z' }), s2);
+  b.sessions.push(s3, Object.assign({}, s2, { deleted: true, updatedAt: '2026-10-03T00:00:00Z' }));
+  const ids = (d) => d.sessions.map((s) => s.id + (s.deleted ? '-' : '') + (s.name || '')).sort();
+  const x = C.mergeMany(base, [a, b]), y = C.mergeMany(base, [b, a]);
+  assert.deepStrictEqual(ids(x), ids(y));
+  assert.deepStrictEqual(ids(x), ['ses_1edited', 'ses_2-', 'ses_3']);
+  assert.deepStrictEqual(C.mergeDiff(base, a).sessions, { added: 1, updated: 1 });
+  assert.deepStrictEqual(C.mergeDiff(x, a).sessions, { added: 0, updated: 0 });
+});
+
+test('start/finish times: datetime-local round-trip and finish-after-start check', () => {
+  const iso = C.fromLocalInput('2026-10-30T18:45');
+  assert.strictEqual(C.toLocalInput(iso), '2026-10-30T18:45');
+  assert.strictEqual(C.fromLocalInput(''), null);
+  assert.strictEqual(C.checkTimes('2026-10-30T10:00:00.000Z', '2026-10-30T11:00:00.000Z'), '');
+  assert.match(C.checkTimes('2026-10-30T10:00:00.000Z', '2026-10-30T09:00:00.000Z'), /after the start/);
+  assert.strictEqual(C.checkTimes('2026-10-30T10:00:00.000Z', null), '');
+});
